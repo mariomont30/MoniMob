@@ -1,0 +1,21 @@
+{
+  "name": "monimob",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test mobile-expo/tests/*.test.js && node --test backend/tests/*.test.js && node scripts/verify-source.mjs",
+    "test:domain": "node --test mobile-expo/tests/*.test.js",
+    "test:backend": "node --test backend/tests/*.test.js",
+    "test:load": "npm --prefix backend run test:load",
+    "start:mobile": "npm --prefix mobile-expo start",
+    "start:backend": "npm --prefix backend start",
+    "test:offline": "node --test mobile-expo/tests/*.test.js backend/tests/handler.test.js backend/tests/geminiClient.test.js && node scripts/verify-source.mjs",
+    "sync:domain": "node scripts/sync-domain.mjs",
+    "test:emulators": "npm --prefix tests/firestore test",
+    "export:native": "npm --prefix mobile-expo exec -- expo export --platform android --platform ios",
+    "check:source": "node scripts/verify-source.mjs"
+  },
+  "engines": {
+    "node": "^22.13.0 || ^24.3.0 || ^26.0.0"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "ui": { "enabled": false },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8080
+    },
+    "singleProjectMode": true,
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9099
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5001
+    }
+  },
+  "functions": [
+    {
+      "source": "backend",
+      "codebase": "monimob",
+      "ignore": [
+        "node_modules",
+        ".env",
+        ".env.*",
+        "tests",
+        "*.log"
+      ],
+      "predeploy": [
+        "node scripts/sync-domain.mjs"
+      ]
+    }
+  ]
+}

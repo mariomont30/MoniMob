@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function ownsProfile(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    function validName(name) {
+      return name is string && name.size() > 0 && name.size() <= 120
+        && name.matches('.*[^ ].*');
+    }
+
+    match /users/{uid} {
+      allow get: if ownsProfile(uid);
+      allow list, delete: if false;
+
+      // Self-registration creates only a basic student profile.
+      // Academic approval and custom claims require a trusted backend.
+      allow create: if ownsProfile(uid)
+        && request.resource.data.keys().hasAll(
+          ['id', 'name', 'registration', 'email', 'roles', 'course'])
+        && request.resource.data.keys().hasOnly(
+          ['id', 'name', 'registration', 'email', 'roles', 'course'])
+        && request.resource.data.id == uid
+        && validName(request.resource.data.name)
+        && request.resource.data.registration is string
+        && request.resource.data.registration.size() > 0
+        && request.resource.data.registration.size() <= 64
+        && request.resource.data.registration.matches('.*[^ ].*')
+        && request.resource.data.email is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.roles == ['student']
+        && request.resource.data.course == 'Ciência da Computação';
+
+      // Also protects roles/fields provisioned later by an administrator.
+      allow update: if ownsProfile(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && validName(request.resource.data.name);
+    }
+
+    // Includes all other collections and all subcollections of users.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

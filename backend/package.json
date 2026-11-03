@@ -1,0 +1,21 @@
+{
+  "name": "monimob-monibot-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "node --test tests/*.test.js",
+    "test:load": "node scripts/run-load-tests.mjs",
+    "reminders:local": "node --env-file-if-exists=.env scripts/run-reminders.mjs --apply",
+    "admin:check": "node scripts/admin.mjs"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  },
+  "main": "src/functions.js"
+}

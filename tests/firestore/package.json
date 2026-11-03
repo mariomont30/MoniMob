@@ -1,0 +1,13 @@
+{
+  "name": "monimob-firestore-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --project demo-monimob --config ../../firebase.json --only firestore,auth \"node --test rules.test.mjs && node --test ../../backend/tests/firestore.integration.test.js ../../backend/tests/firebase.e2e.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "latest",
+    "firebase": "latest",
+    "firebase-tools": "latest"
+  }
+}
