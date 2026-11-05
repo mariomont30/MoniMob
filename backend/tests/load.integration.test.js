@@ -33,7 +33,7 @@ before(async()=>{
  const batch=db.batch();rows.forEach(([p,v])=>batch.set(db.doc(p),v));await batch.commit();
  for(let start=0;start<40;start+=8)await Promise.all(Array.from({length:Math.min(8,40-start)},async(_,offset)=>{
   const i=start+offset,uid='load-'+i,email=uid+'@example.invalid',password='Local-Test-Only-9!';
-  await auth.createUser({uid,email,password});await auth.setCustomUserClaims(uid,{roles:['student']});
+  await auth.createUser({uid,email,password,emailVerified:true});await auth.setCustomUserClaims(uid,{roles:['student']});
   const r=await fetch('http://'+process.env.FIREBASE_AUTH_EMULATOR_HOST+'/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=local-emulator-key',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password,returnSecureToken:true})});
   const data=await r.json();assert.ok(r.ok&&data.idToken,'Local test actor did not authenticate');actors.push({uid,token:data.idToken});
  }));

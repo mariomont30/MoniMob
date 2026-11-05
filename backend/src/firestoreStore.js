@@ -52,8 +52,9 @@ export class FirestoreStore {
       const state = emptyState();
       if (profile.exists) state.users.push({ ...profile.data(), id: profile.id });
       const result = applyAction(state, identity, role, action);
-      for (const entry of state.auditLogs) tx.set(this.db.doc('auditLogs/' + entry.id), entry);
-      tx.set(commandRef, { fingerprint, result, createdAt: new Date().toISOString() });
+      const auditExpiry = new Date(Date.now() + 365 * 24 * 60 * 60_000);
+      for (const entry of state.auditLogs) tx.set(this.db.doc('auditLogs/' + entry.id), { ...entry, expiresAt: auditExpiry });
+      tx.set(commandRef, { fingerprint, result, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000) });
       return result;
     });
   }
@@ -76,14 +77,17 @@ export class FirestoreStore {
         const next = new Map(state[name].map(item => [item.id, item]));
         for (const [id, item] of next) {
           if (!/^[^/]{1,200}$/.test(id)) throw failure('INVALID_ID', 'Identificador inválido.');
-          if (JSON.stringify(old.get(id)) !== JSON.stringify(item)) writes.push(() => tx.set(this.db.collection(name).doc(id), item));
+          if (JSON.stringify(old.get(id)) !== JSON.stringify(item)) {
+            const persisted = name === 'auditLogs' ? { ...item, expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60_000) } : item;
+            writes.push(() => tx.set(this.db.collection(name).doc(id), persisted));
+          }
         }
         for (const id of old.keys()) if (!next.has(id)) writes.push(() => tx.delete(this.db.collection(name).doc(id)));
       }
       if (writes.length > 400) throw failure('BATCH_LIMIT', 'Operação excede o limite do piloto.', 413);
       writes.forEach(write => write());
       tx.set(revisionRef, { revision: (revision.data()?.revision || 0) + 1, updatedAt: new Date().toISOString() });
-      tx.set(commandRef, { fingerprint, result: JSON.parse(JSON.stringify(result ?? null)), createdAt: new Date().toISOString() });
+      tx.set(commandRef, { fingerprint, result: JSON.parse(JSON.stringify(result ?? null)), createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000) });
       return result;
     }, { maxAttempts: 10 }));
   }

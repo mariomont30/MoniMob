@@ -35,7 +35,8 @@ export async function verifyFirebaseToken(token) {
 
     return {
       userId: decoded.uid,
-      email: decoded.email
+      email: decoded.email,
+      emailVerified: decoded.email_verified === true
     };
   } catch (error) {
     if (error.status === 401) throw error;

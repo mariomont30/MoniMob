@@ -3,6 +3,34 @@ import assert from 'node:assert/strict';
 import { createSeedState } from './fixtures/state.js';
 import { DomainError, MonitoringService } from '../src/domain/monitoring.js';
 import { MemoryStateRepository } from './fixtures/repository.js';
+import { createSessionFilters } from '../src/constants.js';
+
+test('restored advanced search combines every selected academic filter and clearing restores results', () => {
+  const repository = new MemoryStateRepository(createSeedState());
+  const state = repository.read();
+  const target = state.sessions[0];
+  const discipline = state.disciplines.find(item => item.id === target.disciplineId);
+  const service = new MonitoringService(repository);
+  const filters = { ...createSessionFilters(), query: target.topic, disciplineId: target.disciplineId, semester: discipline.semester,
+    professorId: target.professorId, monitorId: target.monitorId, modality: target.modality, date: target.date, time: target.time, availableOnly: true };
+  assert.deepEqual(service.listSessions(filters).map(item => item.id), [target.id]);
+  assert.equal(service.listSessions({ ...filters, date: '2099-01-01' }).length, 0);
+  assert.equal(service.listSessions({ ...filters, monitorId: 'another-monitor' }).length, 0);
+  assert.ok(service.listSessions(createSessionFilters()).some(item => item.id === target.id));
+});
+
+test('shift filter keeps its time boundaries and recommendations exclude past or unpublished sessions', () => {
+  const repository = new MemoryStateRepository(createSeedState());
+  const state = repository.read();
+  const template = state.sessions[0];
+  state.sessions = ['00:00','06:00','12:00','18:00'].map((time, index) => ({ ...template, id: 'shift-'+index, date: '2099-06-10', time }));
+  state.sessions.push({ ...template, id: 'past', date: '2000-01-01' }, { ...template, id: 'pending', date: '2099-06-10', status: 'pending' });
+  repository.write(state);
+  const service = new MonitoringService(repository);
+  for (const [shift, index] of [['overnight',0],['morning',1],['afternoon',2],['evening',3]])
+    assert.deepEqual(service.listSessions({ shift, approvedOnly: true }).map(item => item.id), ['shift-'+index]);
+  assert.ok(service.recommendations('student-1').every(item => item.id !== 'past' && item.status === 'approved'));
+});
 
 function setup() {
   const state = createSeedState();
@@ -48,7 +76,8 @@ test('reserva bloqueia conflito real de data e intervalo', () => {
 
 test('presença exige reserva, código da própria sessão e impede duplicidade', () => {
   const { service } = setup();
-  const now = Date.parse('2030-01-01T10:00:00Z');
+  const session = service.state().sessions.find(item => item.id === 'session-1');
+  const now = Date.parse(`${session.date}T${session.time}:00-03:00`) - 10 * 60_000;
   expectCode('RESERVATION_REQUIRED', () => service.registerAttendance({ studentId: 'student-1', sessionId: 'session-1', code: '123456', now }));
   service.reserve({ sessionId: 'session-1', studentId: 'student-1' });
   const code = service.generateAttendanceCode({ actorId: 'monitor-1', sessionId: 'session-1', now });
@@ -60,7 +89,8 @@ test('presença exige reserva, código da própria sessão e impede duplicidade'
 
 test('código expirado não registra presença', () => {
   const { service } = setup();
-  const createdAt = Date.parse('2030-01-01T10:00:00Z');
+  const session = service.state().sessions.find(item => item.id === 'session-1');
+  const createdAt = Date.parse(`${session.date}T${session.time}:00-03:00`) - 10 * 60_000;
   service.reserve({ sessionId: 'session-1', studentId: 'student-1' });
   const code = service.generateAttendanceCode({ actorId: 'monitor-1', sessionId: 'session-1', now: createdAt, lifetimeMinutes: 5 });
   expectCode('EXPIRED_CODE', () => service.registerAttendance({ studentId: 'student-1', sessionId: 'session-1', code: code.code, now: createdAt + 6 * 60_000 }));
@@ -140,14 +170,16 @@ test('cancelamento respeita janela mínima configurada', () => {
   const { repository, service } = setup();
   const reservation = service.reserve({ sessionId: 'session-1', studentId: 'student-1' });
   const session = repository.read().sessions.find(item => item.id === 'session-1');
-  expectCode('CANCELLATION_DEADLINE', () => service.cancelReservation({ reservationId: reservation.id, studentId: 'student-1', now: new Date(`${session.date}T${session.time}:00`).getTime() - 60 * 60_000 }));
+  expectCode('CANCELLATION_DEADLINE', () => service.cancelReservation({ reservationId: reservation.id, studentId: 'student-1', now: Date.parse(`${session.date}T${session.time}:00-03:00`) - 60 * 60_000 }));
 });
 
 test('monitor registra presença ou ausência manualmente por sessão', () => {
   const { repository, service } = setup();
   service.reserve({ sessionId: 'session-1', studentId: 'student-1' });
-  service.setAttendance({ monitorId: 'monitor-1', sessionId: 'session-1', studentId: 'student-1', status: 'absent' });
-  service.setAttendance({ monitorId: 'monitor-1', sessionId: 'session-1', studentId: 'student-1', status: 'present' });
+  const session = service.state().sessions.find(item => item.id === 'session-1');
+  const now = Date.parse(`${session.date}T${session.time}:00-03:00`) + 5 * 60_000;
+  service.setAttendance({ monitorId: 'monitor-1', sessionId: 'session-1', studentId: 'student-1', status: 'absent', now });
+  service.setAttendance({ monitorId: 'monitor-1', sessionId: 'session-1', studentId: 'student-1', status: 'present', now });
   const records = repository.read().attendance.filter(item => item.sessionId === 'session-1' && item.studentId === 'student-1');
   assert.equal(records.length, 1);
   assert.equal(records[0].status, 'present');
@@ -183,10 +215,14 @@ test('favoritos influenciam recomendações e geram auditoria', () => {
 
 test('relatório aceita disciplina e período e exporta CSV', () => {
   const { repository, service } = setup();
-  const session = repository.read().sessions.find(item => item.id === 'session-1');
   service.reserve({ sessionId: 'session-1', studentId: 'student-1' });
-  service.setAttendance({ monitorId: 'monitor-1', sessionId: 'session-1', studentId: 'student-1', status: 'present' });
-  const report = service.reportForProfessor('professor-1', { disciplineId: 'T390', startDate: session.date, endDate: session.date });
+  const pastState = repository.read();
+  const session = pastState.sessions.find(item => item.id === 'session-1');
+  session.date = new Date(Date.now() - 2 * 24 * 60 * 60_000 - 3 * 60 * 60_000).toISOString().slice(0, 10);
+  repository.write(pastState);
+  const completedAt = Date.parse(`${session.date}T${session.time}:00-03:00`) + session.durationMinutes * 60_000 + 5 * 60_000;
+  service.setAttendance({ monitorId: 'monitor-1', sessionId: 'session-1', studentId: 'student-1', status: 'present', now: completedAt });
+  const report = service.reportForProfessor('professor-1', { disciplineId: 'T390', startDate: session.date, endDate: session.date }, completedAt);
   assert.equal(report.sessions, 1); assert.equal(report.attendanceRate, 100);
   assert.match(service.exportReportCsv('professor-1', { disciplineId: 'T390' }), /Estrutura de dados/);
 });
@@ -206,4 +242,71 @@ test('valida data, horário, capacidade e HTTPS nos CRUDs', () => {
   expectCode('INVALID_TIME', () => service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T390', topic: 'Teste', date: '2030-05-10', time: '28:00' } }));
   expectCode('INVALID_CAPACITY', () => service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T390', topic: 'Teste', date: '2030-05-10', time: '18:00', capacity: 0 } }));
   expectCode('INVALID_URL', () => service.saveMaterial({ actorId: 'monitor-1', material: { disciplineId: 'T390', title: 'Teste', url: 'http://inseguro.example' } }));
+  expectCode('INVALID_DATE', () => service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T390', topic: 'Data impossível', date: '2030-02-31', time: '18:00' } }));
+  expectCode('ONLINE_LINK_REQUIRED', () => service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T390', topic: 'Aula online', date: '2030-05-10', time: '18:00', modality: 'Online' } }));
+});
+
+
+test('código de presença fica bloqueado antes da janela autorizada e após seu encerramento', () => {
+  const { service } = setup();
+  const session = service.state().sessions.find(item => item.id === 'session-1');
+  const start = Date.parse(`${session.date}T${session.time}:00-03:00`);
+  expectCode('ATTENDANCE_WINDOW_CLOSED', () => service.generateAttendanceCode({ actorId: 'monitor-1', sessionId: session.id, now: start - 16 * 60_000 }));
+  const code = service.generateAttendanceCode({ actorId: 'monitor-1', sessionId: session.id, now: start - 15 * 60_000 });
+  assert.ok(code.code);
+  expectCode('ATTENDANCE_WINDOW_CLOSED', () => service.registerAttendance({ studentId: 'student-1', sessionId: session.id, code: code.code, now: start + session.durationMinutes * 60_000 + 31 * 60_000 }));
+});
+
+test('presença manual não pode ser lançada antes do início nem depois do prazo de ajuste', () => {
+  const { service } = setup();
+  const session = service.state().sessions.find(item => item.id === 'session-1');
+  service.reserve({ sessionId: session.id, studentId: 'student-1' });
+  const start = Date.parse(`${session.date}T${session.time}:00-03:00`);
+  expectCode('ATTENDANCE_WINDOW_CLOSED', () => service.setAttendance({ monitorId: 'monitor-1', sessionId: session.id, studentId: 'student-1', status: 'present', now: start - 1 }));
+  expectCode('ATTENDANCE_WINDOW_CLOSED', () => service.setAttendance({ monitorId: 'monitor-1', sessionId: session.id, studentId: 'student-1', status: 'present', now: start + session.durationMinutes * 60_000 + 24 * 60 * 60_000 + 1 }));
+});
+
+test('conflitos de horário consideram sessões que atravessam a meia-noite', () => {
+  const { repository, service } = setup();
+  const state = repository.read();
+  const first = state.sessions.find(item => item.id === 'session-1');
+  const second = state.sessions.find(item => item.id === 'session-2');
+  first.date = '2030-05-10'; first.time = '23:30'; first.durationMinutes = 90;
+  second.date = '2030-05-11'; second.time = '00:30'; second.durationMinutes = 60;
+  repository.write(state);
+  service.reserve({ sessionId: first.id, studentId: 'student-1' });
+  expectCode('SCHEDULE_CONFLICT', () => service.reserve({ sessionId: second.id, studentId: 'student-1' }));
+});
+
+test('arquivar sessão encerra a fila de espera e desativa códigos existentes', () => {
+  const { repository, service } = setup();
+  const state = repository.read();
+  state.sessions.find(item => item.id === 'session-1').capacity = 1;
+  state.users.push({ id: 'student-2', roles: ['student'] });
+  state.waitlist.push({ id: 'wait-1', sessionId: 'session-1', studentId: 'student-2', status: 'waiting', createdAt: new Date().toISOString() });
+  state.attendanceCodes.push({ id: 'code-1', sessionId: 'session-1', active: true });
+  repository.write(state);
+  service.archiveSession({ actorId: 'monitor-1', sessionId: 'session-1' });
+  const after = repository.read();
+  assert.equal(after.waitlist.find(item => item.id === 'wait-1').status, 'cancelled');
+  assert.equal(after.attendanceCodes.find(item => item.id === 'code-1').active, false);
+});
+
+
+test('reserva e link online falham de forma segura diante de horários ou validade corrompidos', () => {
+  const { repository, service } = setup();
+  const state = repository.read();
+  const session = state.sessions.find(item => item.id === 'session-1');
+  session.date = '2030-02-31';
+  repository.write(state);
+  expectCode('INVALID_SESSION_DATE', () => service.reserve({ sessionId: 'session-1', studentId: 'student-1' }));
+
+  const fresh = setup();
+  const data = fresh.repository.read();
+  const online = data.sessions.find(item => item.id === 'session-2');
+  online.modality = 'Online';
+  online.monitoringUrl = 'https://meet.example.invalid/session';
+  online.linkValidUntil = 'not-a-date';
+  fresh.repository.write(data);
+  expectCode('LINK_EXPIRED', () => fresh.service.validateMonitoringLink('session-2', Date.now()));
 });

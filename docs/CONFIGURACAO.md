@@ -14,6 +14,18 @@ Os parâmetros `EXPO_PUBLIC_*` são incorporados ao aplicativo e podem ser lidos
 
 O aplicativo exige `API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID` e `APP_ID`. Os demais campos públicos são opcionais e devem corresponder ao mesmo projeto.
 
+## Cadastro e atualização de contas
+
+O cadastro de aluno aceita e-mails `@edu.unifor.br` e `@unifor.br`, matrícula com 4 a 64 caracteres alfanuméricos, ponto, hífen ou sublinhado, e senha com pelo menos oito caracteres. O link enviado pelo Firebase precisa ser confirmado antes do acesso. Na tela de entrada, uma conta ainda não confirmada pode solicitar o reenvio do link.
+
+A matrícula é reservada em um índice único no mesmo lote do perfil. Antes de publicar estas regras em um projeto com usuários, execute a prévia administrativa:
+
+```bash
+node --env-file-if-exists=backend/.env backend/scripts/backfill-registration-index.mjs --project SEU_PROJETO
+```
+
+A prévia não grava dados. O parâmetro `--apply` cria os índices após a conferência completa de duplicidades e conflitos. Os perfis e as matrículas anteriores são preservados; registros legados fora do formato permitido ao novo cadastro não são alterados nem recebem números inventados.
+
 ## Backend
 
 Instale as dependências com `npm ci --prefix backend`. Copie `backend/.env.example` para `backend/.env` e configure:

@@ -2,14 +2,14 @@
 
 ## Instalar o APK disponível
 
-[Baixar MoniMob para Android — versão 1.0.2-qa](https://github.com/mariomont30/MoniMob/releases/download/v1.0.2-qa/MoniMob-Android.apk)
+[Baixar MoniMob para Android — versão 1.0.3-qa](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk)
 
 ![QR Code para baixar o APK](../assets/monimob-apk-qr.png)
 
 1. Abra o link ou aponte a câmera do celular para o QR Code.
 2. Baixe `MoniMob-Android.apk` pela página oficial deste repositório.
 3. Abra o arquivo e conceda a autorização de instalação dessa origem se o Android solicitar.
-4. Abra o MoniMob e entre com sua conta ou cadastre uma conta de aluno.
+4. Abra o MoniMob e entre com sua conta ou cadastre uma conta de aluno. No novo cadastro, confirme o e-mail pelo link enviado pelo Firebase antes de entrar.
 
 O APK contém o aplicativo e dispensa Expo Go. Esta distribuição é uma **versão de testes**, assinada, compatível com Android 7.0 ou superior e processadores ARM64 ou x86_64. O acesso às funções remotas exige internet.
 
@@ -52,7 +52,7 @@ Para uma release, gere e armazene sua chave de assinatura em local privado e for
 
 ```powershell
 cd mobile-expo/android
-.\gradlew.bat assembleRelease -PmonimobVersionCode=3 -PmonimobVersionName=1.0.2-qa
+.\gradlew.bat assembleRelease -PmonimobVersionCode=4 -PmonimobVersionName=1.0.3-qa
 ```
 
 O APK gerado fica em `mobile-expo/android/app/build/outputs/apk/release/`. Use um `versionCode` maior para distribuir uma atualização. A chave de uma nova instalação própria é diferente da usada na release disponibilizada aqui; mantenha sua identidade de assinatura privada e faça backup seguro dela.

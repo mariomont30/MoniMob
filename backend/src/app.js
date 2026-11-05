@@ -18,6 +18,26 @@ async function readJson(request) {
   } catch { throw error('JSON inválido.'); }
 }
 function reply(response, status, body) { response.writeHead(status); response.end(JSON.stringify(body)); }
+function normalizeHistory(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 10) throw error('Histórico de conversa inválido.', 400);
+  const history = [];
+  let previousRole = null;
+  let totalCharacters = 0;
+  for (const entry of value) {
+    const role = entry?.role;
+    const text = String(entry?.text || '').trim();
+    if (!['user', 'model'].includes(role) || !text || text.length > 800 || role === previousRole) {
+      throw error('Histórico de conversa inválido.', 400);
+    }
+    totalCharacters += text.length;
+    if (totalCharacters > 6000) throw error('Histórico de conversa excede o limite permitido.', 400);
+    history.push({ role, text });
+    previousRole = role;
+  }
+  if (history.length && history[0].role !== 'user') throw error('Histórico de conversa inválido.', 400);
+  return history;
+}
 export function createMoniMobHandler({ geminiClient, academicService, verifyFirebaseToken, getFirebaseRoles, allowedOrigins = [], rateLimit = 120, rateWindowMs = 60000 }) {
   const origins = new Set(allowedOrigins);
   const buckets = new Map();
@@ -54,6 +74,7 @@ export function createMoniMobHandler({ geminiClient, academicService, verifyFire
       let verified;
       try { verified = await verifyFirebaseToken(token); } catch { throw error('Token Firebase inválido ou expirado.', 401); }
       if (!verified?.userId) throw error('Identidade Firebase inválida.', 401);
+      if (verified.emailVerified !== true) throw Object.assign(error('Confirme seu e-mail institucional antes de usar o MoniMob.', 403), { code: 'EMAIL_NOT_VERIFIED' });
       if (now < dataQuotaUntil) throw Object.assign(error('Serviço de dados temporariamente indisponível.', 503), { code: 'DATA_QUOTA_EXCEEDED' });
       const roles = await getFirebaseRoles(verified.userId);
       const body = request.method === 'POST' ? await readJson(request) : {};
@@ -74,7 +95,8 @@ export function createMoniMobHandler({ geminiClient, academicService, verifyFire
       if (!message || message.length > 800) throw error('A mensagem deve ter entre 1 e 800 caracteres.');
       if (!geminiClient) throw error('MoniBot indisponível.', 503);
       const context = academicService ? await academicService.aiContext(identity, role, { sessionId: typeof body.context?.sessionId === 'string' ? body.context.sessionId : undefined }) : {};
-      const answer = await geminiClient.generate({ userId: identity.sub, role, message, context });
+      const history = normalizeHistory(body.history);
+      const answer = await geminiClient.generate({ userId: identity.sub, role, message, history, context });
       return reply(response, 200, { answer });
     } catch (cause) {
       const quota = [8, '8', 'resource-exhausted', 'RESOURCE_EXHAUSTED', 'DATA_QUOTA_EXCEEDED'].includes(cause.code);

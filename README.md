@@ -1,14 +1,14 @@
 <div align="center">
 
-<img src="docs/assets/monimob-capa.svg" alt="MoniMob — monitoria universitária em um só lugar" width="100%" />
+<img src="docs/assets/monimob-capa.png" alt="MoniMob — monitoria universitária em um só lugar" width="100%" />
 
 **Encontre uma monitoria. Reserve seu lugar. Aprenda em comunidade.**
 
-[![Android](https://img.shields.io/badge/Android-APK_disponível-0755E9?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mariomont30/MoniMob/releases/download/v1.0.2-qa/MoniMob-Android.apk)
+[![Android](https://img.shields.io/badge/Android-APK_disponível-0755E9?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk)
 ![React Native](https://img.shields.io/badge/React_Native-0.88-13213C?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Firebase](https://img.shields.io/badge/Firebase-Auth_·_Firestore-13213C?style=for-the-badge&logo=firebase&logoColor=FFCA28)
 
-[Baixar para Android](https://github.com/mariomont30/MoniMob/releases/download/v1.0.2-qa/MoniMob-Android.apk) · [Conhecer os recursos](#o-que-você-pode-fazer) · [Executar o projeto](#como-executar) · [Testes](#qualidade-em-prática)
+[Baixar para Android](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk) · [Conhecer os recursos](#o-que-você-pode-fazer) · [Executar o projeto](#como-executar) · [Testes](#qualidade-em-prática)
 
 </div>
 
@@ -16,16 +16,16 @@
 
 O **MoniMob** conecta alunos, monitores e professores em uma experiência para organizar monitorias universitárias. Da busca por uma disciplina à confirmação de presença, cada pessoa encontra as ferramentas da sua área, com acesso autenticado e dados persistidos no Firebase.
 
-Desenvolvido no contexto acadêmico de **Ciência da Computação da Universidade de Fortaleza**, o projeto reúne organização de encontros, acompanhamento de participantes e o **MoniBot**, assistente que utiliza o contexto autorizado da conta para ajudar no uso do aplicativo.
+Desenvolvido no contexto acadêmico de **Ciências da Computação da Universidade de Fortaleza**, o projeto reúne organização de encontros, acompanhamento de participantes e o **MoniBot**, assistente que utiliza o contexto autorizado da conta para ajudar no uso do aplicativo.
 
 ## Baixe, instale e conheça
 
 <table>
 <tr>
 <td align="center" width="50%">
-<a href="https://github.com/mariomont30/MoniMob/releases/download/v1.0.2-qa/MoniMob-Android.apk"><img src="docs/assets/monimob-apk-qr.png" alt="QR Code para baixar o APK do MoniMob" width="230" /></a>
+<a href="https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk"><img src="docs/assets/monimob-apk-qr.png" alt="QR Code para baixar o APK do MoniMob" width="230" /></a>
 <br /><strong>Aponte a câmera para baixar o APK</strong>
-<br /><sub>Android · versão 1.0.2-qa · arquivo hospedado no GitHub Releases</sub>
+<br /><sub>Android · versão 1.0.3-qa · arquivo hospedado no GitHub Releases</sub>
 </td>
 <td align="center" width="50%">
 <img src="docs/assets/monimob-inicio.png" alt="Tela inicial real do aplicativo MoniMob" width="185" />
@@ -33,7 +33,7 @@ Desenvolvido no contexto acadêmico de **Ciência da Computação da Universidad
 </tr>
 </table>
 
-1. [Baixe o APK do MoniMob](https://github.com/mariomont30/MoniMob/releases/download/v1.0.2-qa/MoniMob-Android.apk) no celular Android.
+1. [Baixe o APK do MoniMob](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk) no celular Android.
 2. Abra o arquivo e autorize a instalação dessa origem, caso o sistema solicite.
 3. Abra o aplicativo e cadastre sua conta de aluno ou entre com uma conta autorizada.
 
@@ -63,6 +63,8 @@ Reservas respeitam capacidade, conflitos e permissões. A fila de espera acompan
 | Arquivos e dispositivo | Expo FileSystem · Expo Sharing · armazenamento local da sessão |
 
 O aplicativo autentica a conta no Firebase e solicita as operações acadêmicas ao backend. O serviço verifica o perfil e o vínculo antes de consultar ou modificar os dados. A chave privada da IA fica no servidor.
+
+A versão 1.0.3 apresenta a abertura com degradê azul e verde, o símbolo de livro com conversa e um ícone próprio para Android. A mesma identidade aparece na capa deste repositório. A atualização também recupera os filtros avançados e as recomendações, organiza as telas, mantém o histórico do MoniBot e exige confirmação do e-mail para o acesso.
 
 ## Como executar
 
@@ -115,9 +117,9 @@ npm test
 
 | Verificação realizada | Resultado registrado |
 |:--|:--|
-| Testes de código da versão pública | **110 aprovados**, incluindo a configuração pública do Firebase |
-| Firebase em ambiente local | **22 verificações aprovadas** |
-| Responsividade Android | **104 cenários registrados** |
+| Testes de código da versão pública | **127 aprovados**, incluindo a configuração pública do Firebase |
+| Firebase em ambiente local | **27 verificações aprovadas** |
+| Responsividade Android | **320 dp com fonte 200%, paisagem e tablet verificados nesta versão** |
 | Arquivo CSV no Android | **6 verificações aprovadas**, com recebimento, abertura e conferência dos dados |
 | Lembretes com Firestore real | **3 ciclos automáticos locais**, com persistência e controle de duplicidade |
 
@@ -145,6 +147,6 @@ O texto de apresentação está em português, conforme a versão atual solicita
 
 <div align="center">
 
-**MoniMob · Monitoria universitária em um só lugar.**
+**MoniMob · Monitoria acadêmica mais simples, próxima e conectada.**
 
 </div>

@@ -39,7 +39,7 @@ await store.transact('admin_' + digest, digest, state => {
     for (const item of items) {
       const index = state[name].findIndex(existing => existing.id === item.id);
       if (index >= 0) state[name][index] = { ...state[name][index], ...item };
-      else state[name].push({ ...item, ...(key === 'profiles' ? { course: item.course || 'Ciência da Computação' } : {}) });
+      else state[name].push({ ...item, ...(key === 'profiles' ? { course: item.course || 'Ciências da Computação' } : {}) });
     }
   }
   for (const link of [...state.monitorDisciplines, ...state.professorDisciplines]) {

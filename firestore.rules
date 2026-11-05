@@ -13,7 +13,7 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow get: if ownsProfile(uid);
+      allow get: if ownsProfile(uid) && request.auth.token.email_verified == true;
       allow list, delete: if false;
 
       // Self-registration creates only a basic student profile.
@@ -27,17 +27,31 @@ service cloud.firestore {
         && validName(request.resource.data.name)
         && request.resource.data.registration is string
         && request.resource.data.registration.size() > 0
+        && request.resource.data.registration.size() >= 4
         && request.resource.data.registration.size() <= 64
-        && request.resource.data.registration.matches('.*[^ ].*')
+        && request.resource.data.registration.matches('^[a-z0-9._-]+$')
+        && getAfter(/databases/$(database)/documents/studentRegistrationIndex/$(request.resource.data.registration)).data.uid == uid
         && request.resource.data.email is string
         && request.resource.data.email == request.auth.token.email
+        && request.resource.data.email.matches('.*@(edu\\.unifor\\.br|unifor\\.br)$')
         && request.resource.data.roles == ['student']
-        && request.resource.data.course == 'Ciência da Computação';
+        && request.resource.data.course in ['Ciências da Computação', 'Ciência da Computação'];
 
       // Also protects roles/fields provisioned later by an administrator.
-      allow update: if ownsProfile(uid)
+      allow update: if ownsProfile(uid) && request.auth.token.email_verified == true
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
         && validName(request.resource.data.name);
+    }
+
+    // Unique index: a matrícula can be claimed by only one authenticated account.
+    // The index and user profile must be written in the same atomic batch.
+    match /studentRegistrationIndex/{registration} {
+      allow get, list: if false;
+      allow create: if ownsProfile(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.registration == registration;
+      allow update, delete: if false;
     }
 
     // Includes all other collections and all subcollections of users.

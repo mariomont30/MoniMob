@@ -7,15 +7,45 @@ const required = (value, code, message) => {
   return value;
 };
 const newId = prefix => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const minutes = time => { const [h, m] = String(time).split(':').map(Number); return h * 60 + m; };
 const nowIso = now => new Date(now ?? Date.now()).toISOString();
 const role = (state, userId, value) => state.users.find(user => user.id === userId)?.roles?.includes(value) || false;
 const professorOwns = (state, userId, disciplineId) => state.professorDisciplines.some(x => x.professorId === userId && x.disciplineId === disciplineId);
 const monitorOwns = (state, userId, disciplineId) => state.monitorDisciplines.some(x => x.monitorId === userId && x.disciplineId === disciplineId && x.active && (!x.validUntil || Date.parse(x.validUntil) > Date.now()));
-const overlaps = (a, b) => a.date === b.date && minutes(a.time) < minutes(b.time) + Number(b.durationMinutes || 60) && minutes(b.time) < minutes(a.time) + Number(a.durationMinutes || 60);
-const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value)) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
+const LOCAL_TIME_OFFSET = '-03:00';
+const validDate = value => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return false;
+  const [year, month, day] = String(value).split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+};
 const validTime = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value));
-const validHttpsUrl = value => { try { return new URL(String(value)).protocol === 'https:'; } catch { return false; } };
+const validHttpsUrl = value => {
+  try { const url = new URL(String(value).trim()); return url.protocol === 'https:' && Boolean(url.hostname) && !url.username && !url.password; }
+  catch { return false; }
+};
+const sessionStart = session => validDate(session?.date) && validTime(session?.time)
+  ? Date.parse(`${session.date}T${session.time}:00${LOCAL_TIME_OFFSET}`) : NaN;
+const sessionEnd = session => sessionStart(session) + Number(session.durationMinutes || 60) * 60_000;
+const overlaps = (a, b) => {
+  const aStart = sessionStart(a), bStart = sessionStart(b);
+  if (!Number.isFinite(aStart) || !Number.isFinite(bStart)) return false;
+  return aStart < sessionEnd(b) && bStart < sessionEnd(a);
+};
+const localDateTime = value => {
+  const text = String(value || '').trim();
+  if (!text) return NaN;
+  const withOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text) ? text : `${text}${LOCAL_TIME_OFFSET}`;
+  return Date.parse(withOffset);
+};
+const attendanceCodeWindow = (session, now, settings = {}) => {
+  const early = Math.max(0, Number(settings.attendanceEarlyWindowMinutes ?? 15));
+  const late = Math.max(0, Number(settings.attendanceLateWindowMinutes ?? 30));
+  return now >= sessionStart(session) - early * 60_000 && now <= sessionEnd(session) + late * 60_000;
+};
+const manualAttendanceWindow = (session, now, settings = {}) => {
+  const grace = Math.max(0, Number(settings.manualAttendanceGraceHours ?? 24));
+  return now >= sessionStart(session) && now <= sessionEnd(session) + grace * 3_600_000;
+};
 
 function notify(state, userId, title, body, type = 'info', sessionId = null) {
   state.notifications.push({ id: newId('notification'), userId, title, body, type, sessionId, read: false, createdAt: nowIso() });
@@ -24,7 +54,6 @@ function audit(state, actorId, action, entityType, entityId, details = {}) {
   state.auditLogs.push({ id: newId('audit'), actorId, action, entityType, entityId, details, createdAt: nowIso() });
 }
 function occupied(state, sessionId) { const count = state.sessions.find(item => item.id === sessionId)?.reservedCount; if (Number.isInteger(count)) return count; return state.reservations.filter(x => x.sessionId === sessionId && x.status === 'confirmed').length; }
-function sessionStart(session) { return new Date(`${session.date}T${session.time}:00-03:00`).getTime(); }
 function promoteWaitlist(state, session) {
   if (occupied(state, session.id) >= session.capacity) return null;
   const candidate = state.waitlist.filter(x => x.sessionId === session.id && x.status === 'waiting' && !state.reservations.some(r => r.studentId === x.studentId && r.status === 'confirmed' && overlaps(state.sessions.find(s => s.id === r.sessionId) || {}, session))).sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
@@ -46,6 +75,8 @@ export class MonitoringService {
       const monitor = state.users.find(x => x.id === session.monitorId);
       const professor = state.users.find(x => x.id === session.professorId);
       const query = String(filters.query || '').toLocaleLowerCase('pt-BR');
+      const hour = validTime(session.time) ? Number(session.time.slice(0, 2)) : NaN;
+      const shift = hour < 6 ? 'overnight' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : hour < 24 ? 'evening' : '';
       const text = `${discipline?.name} ${session.topic} ${monitor?.name} ${professor?.name}`.toLocaleLowerCase('pt-BR');
       return !session.archived && session.status !== 'cancelled' && (!filters.approvedOnly || sessionStart(session) > Date.now())
         && (!filters.approvedOnly || session.status === 'approved') && (!query || text.includes(query))
@@ -54,6 +85,7 @@ export class MonitoringService {
         && (!filters.professorId || session.professorId === filters.professorId)
         && (!filters.modality || session.modality === filters.modality)
         && (!filters.date || session.date === filters.date) && (!filters.time || session.time === filters.time)
+        && (!filters.shift || shift === filters.shift)
         && (!filters.monitorId || session.monitorId === filters.monitorId)
         && (!filters.availableOnly || occupied(state, session.id) < session.capacity);
     });
@@ -64,7 +96,9 @@ export class MonitoringService {
     if (!role(state, studentId, 'student')) throw new DomainError('FORBIDDEN', 'Somente alunos podem reservar monitorias.');
     const session = state.sessions.find(x => x.id === sessionId && !x.archived && x.status === 'approved');
     if (!session) throw new DomainError('SESSION_UNAVAILABLE', 'Sessão indisponível para reserva.');
-    if (sessionStart(session) <= Date.now()) throw new DomainError('SESSION_PAST', 'Não é possível reservar uma sessão encerrada.');
+    const startsAt = sessionStart(session);
+    if (!Number.isFinite(startsAt)) throw new DomainError('INVALID_SESSION_DATE', 'A sessão possui data ou horário inválido.');
+    if (startsAt <= Date.now()) throw new DomainError('SESSION_PAST', 'Não é possível reservar uma sessão encerrada.');
     if (state.reservations.some(x => x.sessionId === sessionId && x.studentId === studentId && x.status === 'confirmed')) throw new DomainError('DUPLICATE_RESERVATION', 'O aluno já possui reserva nesta sessão.');
     if (occupied(state, sessionId) >= session.capacity) throw new DomainError('FULL_SESSION', 'A sessão está lotada. Entre na lista de espera.');
     const conflict = state.reservations.filter(x => x.studentId === studentId && x.status === 'confirmed').map(x => state.sessions.find(s => s.id === x.sessionId)).filter(Boolean).some(x => overlaps(x, session));
@@ -77,7 +111,9 @@ export class MonitoringService {
     const state = this.state(); const session = state.sessions.find(x => x.id === sessionId && x.status === 'approved' && !x.archived);
     if (!session || !role(state, studentId, 'student')) throw new DomainError('FORBIDDEN', 'Lista de espera indisponível.');
     if (occupied(state, sessionId) < session.capacity) throw new DomainError('SPOTS_AVAILABLE', 'Há vaga disponível; faça a reserva diretamente.');
-    if (sessionStart(session) <= Date.now()) throw new DomainError('SESSION_PAST', 'Monitoria encerrada.');
+    const startsAt = sessionStart(session);
+    if (!Number.isFinite(startsAt)) throw new DomainError('INVALID_SESSION_DATE', 'A sessão possui data ou horário inválido.');
+    if (startsAt <= Date.now()) throw new DomainError('SESSION_PAST', 'Monitoria encerrada.');
     if (state.reservations.some(x => x.sessionId === sessionId && x.studentId === studentId && x.status === 'confirmed')) throw new DomainError('DUPLICATE_RESERVATION', 'Você já possui reserva.');
     if (state.waitlist.some(x => x.sessionId === sessionId && x.studentId === studentId && x.status === 'waiting')) throw new DomainError('ALREADY_WAITING', 'Você já está na lista de espera.');
     const item = { id: newId('wait'), sessionId, disciplineId: session.disciplineId, studentId, status: 'waiting', createdAt: nowIso() };
@@ -86,9 +122,16 @@ export class MonitoringService {
   cancelReservation({ reservationId, studentId, now = Date.now() }) {
     const state = this.state(); const reservation = state.reservations.find(x => x.id === reservationId && x.studentId === studentId && x.status === 'confirmed');
     if (!reservation) throw new DomainError('NOT_FOUND', 'Reserva ativa não encontrada.');
-    const session = state.sessions.find(x => x.id === reservation.sessionId); const deadline = sessionStart(session) - Number(state.settings.cancellationWindowHours || 0) * 3_600_000;
-    if (now > deadline) throw new DomainError('CANCELLATION_DEADLINE', `O cancelamento encerra ${state.settings.cancellationWindowHours} hora(s) antes da sessão.`);
-    reservation.status = 'cancelled'; reservation.cancelledAt = nowIso(now); audit(state, studentId, 'CANCEL_RESERVATION', 'reservation', reservationId); promoteWaitlist(state, session); this.repository.write(state); return reservation;
+    const session = state.sessions.find(x => x.id === reservation.sessionId);
+    if (session) {
+      const startsAt = sessionStart(session);
+      if (!Number.isFinite(startsAt)) throw new DomainError('INVALID_SESSION_DATE', 'A sessão vinculada possui data ou horário inválido.');
+      const deadline = startsAt - Number(state.settings.cancellationWindowHours || 0) * 3_600_000;
+      if (now > deadline) throw new DomainError('CANCELLATION_DEADLINE', `O cancelamento encerra ${state.settings.cancellationWindowHours} hora(s) antes da sessão.`);
+    }
+    reservation.status = 'cancelled'; reservation.cancelledAt = nowIso(now); audit(state, studentId, 'CANCEL_RESERVATION', 'reservation', reservationId);
+    if (session) promoteWaitlist(state, session);
+    this.repository.write(state); return reservation;
   }
   toggleFavorite({ studentId, sessionId }) {
     const state = this.state(); if (!role(state, studentId, 'student')) throw new DomainError('FORBIDDEN', 'Ação exclusiva de aluno.');
@@ -98,7 +141,7 @@ export class MonitoringService {
   }
   recommendations(studentId) {
     const state = this.state(); const preferred = new Set(state.favorites.filter(x => x.studentId === studentId).map(x => state.sessions.find(s => s.id === x.sessionId)?.disciplineId).filter(Boolean));
-    return this.listSessions({ approvedOnly: true }).sort((a, b) => Number(preferred.has(b.disciplineId)) - Number(preferred.has(a.disciplineId))).slice(0, 3);
+    return this.listSessions({ approvedOnly: true }).sort((a, b) => Number(preferred.has(b.disciplineId)) - Number(preferred.has(a.disciplineId)) || sessionStart(a) - sessionStart(b)).slice(0, 3);
   }
   saveSession({ actorId, session }) {
     const state = this.state(); if (!role(state, actorId, 'monitor') || !monitorOwns(state, actorId, session.disciplineId)) throw new DomainError('FORBIDDEN', 'Monitor não vinculado à disciplina.');
@@ -109,14 +152,20 @@ export class MonitoringService {
     const durationMinutes = Number(session.durationMinutes ?? 60); const capacity = Number(session.capacity ?? 1);
     if (!Number.isFinite(durationMinutes) || durationMinutes < 15) throw new DomainError('INVALID_DURATION', 'A duração deve ser de pelo menos 15 minutos.');
     if (!Number.isInteger(capacity) || capacity < 1) throw new DomainError('INVALID_CAPACITY', 'A quantidade de vagas deve ser um inteiro positivo.');
-    if (session.monitoringUrl && !validHttpsUrl(session.monitoringUrl)) throw new DomainError('INVALID_URL', 'O link da monitoria deve usar HTTPS.');
-    if (!['Presencial', 'Online'].includes(session.modality || 'Presencial')) throw new DomainError('INVALID_MODALITY', 'Modalidade inválida.');
-    if (new Date(session.date + 'T' + session.time + ':00-03:00').getTime() <= Date.now()) throw new DomainError('SESSION_PAST', 'Informe uma data futura.');
-    if (session.linkValidUntil && Number.isNaN(new Date(session.linkValidUntil).getTime())) throw new DomainError('INVALID_LINK_EXPIRY', 'Informe uma validade de link válida.');
+    const modality = session.modality || 'Presencial';
+    if (!['Presencial', 'Online'].includes(modality)) throw new DomainError('INVALID_MODALITY', 'Modalidade inválida.');
+    if (modality === 'Online' && !String(session.monitoringUrl || '').trim()) throw new DomainError('ONLINE_LINK_REQUIRED', 'Informe o link HTTPS da monitoria online.');
+    if (session.monitoringUrl && !validHttpsUrl(session.monitoringUrl)) throw new DomainError('INVALID_URL', 'O link da monitoria deve usar HTTPS válido.');
+    const start = sessionStart(session);
+    const end = start + durationMinutes * 60_000;
+    if (start <= Date.now()) throw new DomainError('SESSION_PAST', 'Informe uma data futura.');
+    const linkExpiry = session.linkValidUntil ? localDateTime(session.linkValidUntil) : NaN;
+    if (session.linkValidUntil && !Number.isFinite(linkExpiry)) throw new DomainError('INVALID_LINK_EXPIRY', 'Informe uma validade de link válida.');
+    if (session.linkValidUntil && modality === 'Online' && linkExpiry < end) throw new DomainError('INVALID_LINK_EXPIRY', 'A validade do link deve cobrir toda a duração da monitoria.');
     const previous = state.sessions.find(x => x.id === session.id);
     if (previous && state.reservations.some(r => r.sessionId === previous.id && r.status === 'confirmed' && state.reservations.some(other => other.studentId === r.studentId && other.sessionId !== previous.id && other.status === 'confirmed' && overlaps(state.sessions.find(s => s.id === other.sessionId) || {}, session)))) throw new DomainError('SCHEDULE_CONFLICT', 'A alteração conflita com outra reserva dos participantes.');
     if (previous && capacity < occupied(state, previous.id)) throw new DomainError('CAPACITY_BELOW_OCCUPIED', 'As vagas não podem ser menores que as reservas confirmadas.');
-    const saved = { id: session.id || newId('session'), disciplineId: session.disciplineId, monitorId: actorId, professorId: link.professorId, topic: session.topic.trim(), description: String(session.description || '').trim(), date: session.date, time: session.time, durationMinutes, modality: session.modality || 'Presencial', location: session.location || '', capacity, monitoringUrl: session.monitoringUrl || '', linkValidUntil: session.linkValidUntil || '', status: 'pending', archived: false };
+    const saved = { id: session.id || newId('session'), disciplineId: session.disciplineId, monitorId: actorId, professorId: link.professorId, topic: session.topic.trim(), description: String(session.description || '').trim(), date: session.date, time: session.time, durationMinutes, modality, location: session.location || '', capacity, monitoringUrl: session.monitoringUrl || '', linkValidUntil: session.linkValidUntil || '', status: 'pending', archived: false };
     if (previous) {
       if (previous.monitorId !== actorId) throw new DomainError('FORBIDDEN', 'A sessão pertence a outro monitor.'); state.sessions[state.sessions.findIndex(x => x.id === saved.id)] = saved;
       state.reservations.filter(x => x.sessionId === saved.id && x.status === 'confirmed').forEach(x => notify(state, x.studentId, 'Monitoria alterada', `Confira os novos dados de “${saved.topic}”.`, 'warning', saved.id));
@@ -124,27 +173,66 @@ export class MonitoringService {
     notify(state, saved.professorId, previous ? 'Sessão alterada' : 'Nova sessão para validar', `${saved.topic} aguarda validação.`, 'warning'); audit(state, actorId, previous ? 'UPDATE_SESSION' : 'CREATE_SESSION', 'session', saved.id); this.repository.write(state); return saved;
   }
   archiveSession({ actorId, sessionId }) {
-    const state = this.state(); const session = state.sessions.find(x => x.id === sessionId); if (!session || session.monitorId !== actorId) throw new DomainError('FORBIDDEN', 'A sessão não pertence ao monitor.');
-    session.archived = true; session.status = 'cancelled'; state.reservations.filter(x => x.sessionId === sessionId && x.status === 'confirmed').forEach(x => { x.status = 'cancelled'; notify(state, x.studentId, 'Monitoria cancelada', `${session.topic} foi cancelada.`, 'error', session.id); });
+    const state = this.state(); const session = state.sessions.find(x => x.id === sessionId);
+    if (!session || session.monitorId !== actorId) throw new DomainError('FORBIDDEN', 'A sessão não pertence ao monitor.');
+    session.archived = true; session.status = 'cancelled';
+    state.attendanceCodes.filter(x => x.sessionId === sessionId).forEach(x => { x.active = false; });
+    state.reservations.filter(x => x.sessionId === sessionId && x.status === 'confirmed').forEach(x => {
+      x.status = 'cancelled'; x.cancelledAt = nowIso();
+      notify(state, x.studentId, 'Monitoria cancelada', `${session.topic} foi cancelada.`, 'error', session.id);
+    });
+    state.waitlist.filter(x => x.sessionId === sessionId && ['waiting', 'promoted'].includes(x.status)).forEach(x => {
+      x.status = 'cancelled'; x.cancelledAt = nowIso();
+      notify(state, x.studentId, 'Lista de espera encerrada', `A monitoria “${session.topic}” foi cancelada.`, 'warning', session.id);
+    });
     audit(state, actorId, 'ARCHIVE_SESSION', 'session', sessionId); this.repository.write(state); return session;
   }
+  canGenerateAttendanceCode(sessionId, now = Date.now()) {
+    const session = this.state().sessions.find(x => x.id === sessionId);
+    return Boolean(session && !session.archived && session.status === 'approved' && attendanceCodeWindow(session, now, this.state().settings));
+  }
+  canSetAttendance(sessionId, now = Date.now()) {
+    const state = this.state();
+    const session = state.sessions.find(x => x.id === sessionId);
+    return Boolean(session && !session.archived && session.status === 'approved' && manualAttendanceWindow(session, now, state.settings));
+  }
+  canRegisterAttendance(sessionId, now = Date.now()) {
+    const state = this.state();
+    const session = state.sessions.find(x => x.id === sessionId);
+    return Boolean(session && !session.archived && session.status === 'approved' && attendanceCodeWindow(session, now, state.settings));
+  }
   generateAttendanceCode({ actorId, sessionId, now = Date.now(), lifetimeMinutes = 20 }) {
-    const state = this.state(); const session = state.sessions.find(x => x.id === sessionId && !x.archived && x.status === 'approved'); if (!session || session.monitorId !== actorId) throw new DomainError('FORBIDDEN', 'Somente o monitor responsável por uma sessão aprovada pode gerar o código.');
-    const record = { id: newId('code'), sessionId, code: this.codeGenerator(), createdBy: actorId, createdAt: nowIso(now), expiresAt: nowIso(now + lifetimeMinutes * 60_000), active: true };
+    const state = this.state(); const session = state.sessions.find(x => x.id === sessionId && !x.archived && x.status === 'approved');
+    if (!session || session.monitorId !== actorId) throw new DomainError('FORBIDDEN', 'Somente o monitor responsável por uma sessão aprovada pode gerar o código.');
+    if (!attendanceCodeWindow(session, now, state.settings)) throw new DomainError('ATTENDANCE_WINDOW_CLOSED', 'O código só pode ser gerado 15 minutos antes e até 30 minutos depois do término da monitoria.');
+    const ttl = Number(lifetimeMinutes);
+    if (!Number.isInteger(ttl) || ttl < 1 || ttl > 60) throw new DomainError('INVALID_CODE_LIFETIME', 'A validade do código deve ficar entre 1 e 60 minutos.');
+    const record = { id: newId('code'), sessionId, code: this.codeGenerator(), createdBy: actorId, createdAt: nowIso(now), expiresAt: nowIso(now + ttl * 60_000), active: true };
     state.attendanceCodes.forEach(x => { if (x.sessionId === sessionId) x.active = false; }); state.attendanceCodes.push(record); audit(state, actorId, 'GENERATE_ATTENDANCE_CODE', 'session', sessionId); this.repository.write(state); return record;
   }
   registerAttendance({ studentId, sessionId, code, now = Date.now() }) {
-    const state = this.state(); const reservation = state.reservations.find(x => x.studentId === studentId && x.sessionId === sessionId && x.status === 'confirmed');
-    if (!reservation) throw new DomainError('RESERVATION_REQUIRED', 'É necessário possuir reserva confirmada nesta sessão.'); if (state.attendance.some(x => x.studentId === studentId && x.sessionId === sessionId)) throw new DomainError('DUPLICATE_ATTENDANCE', 'A presença já foi registrada nesta sessão.');
-    const valid = state.attendanceCodes.find(x => x.sessionId === sessionId && x.code === String(code).trim() && x.active); if (!valid) throw new DomainError('INVALID_CODE', 'Código de presença inválido para esta sessão.'); if (new Date(valid.expiresAt).getTime() <= now) throw new DomainError('EXPIRED_CODE', 'O código de presença expirou.');
+    const state = this.state();
+    const session = state.sessions.find(x => x.id === sessionId && !x.archived && x.status === 'approved');
+    if (!session) throw new DomainError('SESSION_UNAVAILABLE', 'Sessão indisponível para registro de presença.');
+    if (!attendanceCodeWindow(session, now, state.settings)) throw new DomainError('ATTENDANCE_WINDOW_CLOSED', 'O período de registro de presença por código está encerrado.');
+    const reservation = state.reservations.find(x => x.studentId === studentId && x.sessionId === sessionId && x.status === 'confirmed');
+    if (!reservation) throw new DomainError('RESERVATION_REQUIRED', 'É necessário possuir reserva confirmada nesta sessão.');
+    if (state.attendance.some(x => x.studentId === studentId && x.sessionId === sessionId)) throw new DomainError('DUPLICATE_ATTENDANCE', 'A presença já foi registrada nesta sessão.');
+    const valid = state.attendanceCodes.find(x => x.sessionId === sessionId && x.code === String(code).trim() && x.active);
+    if (!valid) throw new DomainError('INVALID_CODE', 'Código de presença inválido para esta sessão.');
+    if (new Date(valid.expiresAt).getTime() <= now) throw new DomainError('EXPIRED_CODE', 'O código de presença expirou.');
     const item = { id: newId('attendance'), sessionId, disciplineId: reservation.disciplineId, studentId, reservationId: reservation.id, status: 'present', source: 'code', updatedBy: studentId, registeredAt: nowIso(now) };
     state.attendance.push(item); audit(state, studentId, 'REGISTER_ATTENDANCE', 'session', sessionId); this.repository.write(state); return item;
   }
-  setAttendance({ monitorId, sessionId, studentId, status }) {
-    const state = this.state(); const session = state.sessions.find(x => x.id === sessionId); if (!session || session.monitorId !== monitorId || !['present', 'absent'].includes(status)) throw new DomainError('FORBIDDEN', 'Atualização de presença não autorizada.');
-    const reservation = state.reservations.find(x => x.sessionId === sessionId && x.studentId === studentId && x.status === 'confirmed'); if (!reservation) throw new DomainError('RESERVATION_REQUIRED', 'Participante sem reserva confirmada.');
+  setAttendance({ monitorId, sessionId, studentId, status, now = Date.now() }) {
+    const state = this.state(); const session = state.sessions.find(x => x.id === sessionId);
+    if (!session || session.archived || session.status !== 'approved' || session.monitorId !== monitorId || !['present', 'absent'].includes(status)) throw new DomainError('FORBIDDEN', 'Atualização de presença não autorizada.');
+    if (!manualAttendanceWindow(session, now, state.settings)) throw new DomainError('ATTENDANCE_WINDOW_CLOSED', 'A presença manual só pode ser ajustada durante a monitoria ou nas 24 horas seguintes ao término.');
+    const reservation = state.reservations.find(x => x.sessionId === sessionId && x.studentId === studentId && x.status === 'confirmed');
+    if (!reservation) throw new DomainError('RESERVATION_REQUIRED', 'Participante sem reserva confirmada.');
     let item = state.attendance.find(x => x.sessionId === sessionId && x.studentId === studentId);
-    if (item) Object.assign(item, { status, source: 'manual', updatedBy: monitorId, registeredAt: nowIso() }); else { item = { id: newId('attendance'), sessionId, disciplineId: session.disciplineId, studentId, reservationId: reservation.id, status, source: 'manual', updatedBy: monitorId, registeredAt: nowIso() }; state.attendance.push(item); }
+    if (item) Object.assign(item, { status, source: 'manual', updatedBy: monitorId, registeredAt: nowIso(now) });
+    else { item = { id: newId('attendance'), sessionId, disciplineId: session.disciplineId, studentId, reservationId: reservation.id, status, source: 'manual', updatedBy: monitorId, registeredAt: nowIso(now) }; state.attendance.push(item); }
     audit(state, monitorId, 'SET_ATTENDANCE', 'session', sessionId, { studentId, status }); this.repository.write(state); return item;
   }
   saveMaterial({ actorId, material }) {
@@ -168,12 +256,36 @@ export class MonitoringService {
     if (decision === 'approved' && entityType === 'material') state.users.filter(x => x.roles?.includes('student') && (!x.disciplineIds || x.disciplineIds.includes(entity.disciplineId))).forEach(x => notify(state, x.id, 'Novo material', entity.title, 'success'));
     audit(state, professorId, decision.toUpperCase(), entityType, entityId, { comment }); this.repository.write(state); return approval;
   }
-  reportForProfessor(professorId, filters = {}) {
-    const state = this.state(); const allowed = new Set(state.professorDisciplines.filter(x => x.professorId === professorId).map(x => x.disciplineId)); const disciplineIds = filters.disciplineId ? new Set([filters.disciplineId].filter(x => allowed.has(x))) : allowed;
-    const sessions = state.sessions.filter(x => disciplineIds.has(x.disciplineId) && !x.archived && (!filters.startDate || x.date >= filters.startDate) && (!filters.endDate || x.date <= filters.endDate)); const ids = new Set(sessions.map(x => x.id)); const reservations = state.reservations.filter(x => ids.has(x.sessionId) && x.status === 'confirmed'); const attendance = state.attendance.filter(x => ids.has(x.sessionId) && x.status === 'present');
-    const rows = [...disciplineIds].map(id => { const discipline = state.disciplines.find(x => x.id === id); const own = sessions.filter(x => x.disciplineId === id); const ownIds = new Set(own.map(x => x.id)); const reserved = reservations.filter(x => ownIds.has(x.sessionId)).length; const present = attendance.filter(x => ownIds.has(x.sessionId)).length; return { disciplineId: id, code: discipline?.code, name: discipline?.name, sessions: own.length, reservations: reserved, attendanceRate: reserved ? Math.round(present / reserved * 100) : 0 }; });
-    return { disciplines: disciplineIds.size, sessions: sessions.length, reservations: reservations.length, attendanceRate: reservations.length ? Math.round(attendance.length / reservations.length * 100) : 0, pending: state.sessions.filter(x => disciplineIds.has(x.disciplineId) && x.status === 'pending' && !x.archived).length + state.materials.filter(x => disciplineIds.has(x.disciplineId) && x.status === 'pending' && !x.archived).length, rows };
+  reportForProfessor(professorId, filters = {}, now = Date.now()) {
+    const state = this.state();
+    const allowed = new Set(state.professorDisciplines.filter(x => x.professorId === professorId).map(x => x.disciplineId));
+    const disciplineIds = filters.disciplineId ? new Set([filters.disciplineId].filter(x => allowed.has(x))) : allowed;
+    const sessions = state.sessions.filter(x => disciplineIds.has(x.disciplineId) && !x.archived && x.status === 'approved'
+      && sessionEnd(x) <= now && (!filters.startDate || x.date >= filters.startDate) && (!filters.endDate || x.date <= filters.endDate));
+    const ids = new Set(sessions.map(x => x.id));
+    const reservations = state.reservations.filter(x => ids.has(x.sessionId) && x.status === 'confirmed');
+    const attendance = state.attendance.filter(x => ids.has(x.sessionId) && ['present', 'absent'].includes(x.status));
+    const rows = [...disciplineIds].map(id => {
+      const discipline = state.disciplines.find(x => x.id === id);
+      const own = sessions.filter(x => x.disciplineId === id);
+      const ownIds = new Set(own.map(x => x.id));
+      const reserved = reservations.filter(x => ownIds.has(x.sessionId)).length;
+      const present = attendance.filter(x => ownIds.has(x.sessionId) && x.status === 'present').length;
+      return { disciplineId: id, code: discipline?.code, name: discipline?.name, sessions: own.length, reservations: reserved, attendanceRate: reserved ? Math.round(present / reserved * 100) : 0 };
+    });
+    return { disciplines: disciplineIds.size, sessions: sessions.length, reservations: reservations.length,
+      attendanceRate: reservations.length ? Math.round(attendance.filter(x => x.status === 'present').length / reservations.length * 100) : 0,
+      pending: state.sessions.filter(x => disciplineIds.has(x.disciplineId) && x.status === 'pending' && !x.archived).length
+        + state.materials.filter(x => disciplineIds.has(x.disciplineId) && x.status === 'pending' && !x.archived).length, rows };
   }
   exportReportCsv(professorId, filters = {}) { const report = this.reportForProfessor(professorId, filters); const escape = value => `"${String(/^[=+@\-\t\r]/.test(String(value ?? '')) ? "'" + value : value ?? '').replaceAll('"', '""')}"`; return ['Disciplina,Código,Sessões,Reservas,Presença (%)', ...report.rows.map(x => [x.name, x.code, x.sessions, x.reservations, x.attendanceRate].map(escape).join(','))].join('\n'); }
-  validateMonitoringLink(sessionId, now = Date.now()) { const session = this.state().sessions.find(x => x.id === sessionId); if (!session?.monitoringUrl) throw new DomainError('LINK_UNAVAILABLE', 'Link não informado.'); if (session.linkValidUntil && new Date(session.linkValidUntil).getTime() <= now) throw new DomainError('LINK_EXPIRED', 'O link da monitoria expirou.'); return session.monitoringUrl; }
+  validateMonitoringLink(sessionId, now = Date.now()) {
+    const session = this.state().sessions.find(x => x.id === sessionId);
+    if (!session || session.archived || session.status !== 'approved' || session.modality !== 'Online' || !validHttpsUrl(session.monitoringUrl)) throw new DomainError('LINK_UNAVAILABLE', 'Link da monitoria indisponível.');
+    if (session.linkValidUntil) {
+      const expiresAt = localDateTime(session.linkValidUntil);
+      if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new DomainError('LINK_EXPIRED', 'O link da monitoria está expirado ou possui validade inválida.');
+    }
+    return session.monitoringUrl;
+  }
 }

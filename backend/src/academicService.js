@@ -5,7 +5,7 @@ export const COLLECTIONS = ['users', 'disciplines', 'professorDisciplines', 'mon
 const clone = value => JSON.parse(JSON.stringify(value));
 export const failure = (code, message, status = 400) => Object.assign(new Error(message), { code, status });
 export function emptyState() {
-  return { ...Object.fromEntries(COLLECTIONS.map(name => [name, []])), settings: { cancellationWindowHours: 2, attendanceCodeMinutes: 20 } };
+  return { ...Object.fromEntries(COLLECTIONS.map(name => [name, []])), settings: { cancellationWindowHours: 2, attendanceCodeMinutes: 20, attendanceEarlyWindowMinutes: 15, attendanceLateWindowMinutes: 30, manualAttendanceGraceHours: 24 } };
 }
 const validLink = link => link.active !== false && (!link.validFrom || Date.parse(link.validFrom) <= Date.now()) && (!link.monitorId || Boolean(link.validUntil)) && (!link.validUntil || Date.parse(link.validUntil) > Date.now());
 function authorize(state, identity, role) {

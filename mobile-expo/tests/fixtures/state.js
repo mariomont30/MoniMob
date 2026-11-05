@@ -1,7 +1,6 @@
 function localDate(offset) {
-  const date = new Date();
-  date.setHours(12, 0, 0, 0);
-  date.setDate(date.getDate() + offset);
+  const nowFortaleza = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const date = new Date(Date.UTC(nowFortaleza.getUTCFullYear(), nowFortaleza.getUTCMonth(), nowFortaleza.getUTCDate() + offset));
   return date.toISOString().slice(0, 10);
 }
 
@@ -35,16 +34,16 @@ export const curriculum = [
 
 export const demoUsers = [
   {
-    id: 'student-1', name: 'Mário Gonçalves Monteiro Magro', registration: '2526319',
-    email: 'mario@edu.unifor.br', roles: ['student'], course: 'Ciência da Computação'
+    id: 'student-1', name: 'Aluno de teste', registration: '1000001',
+    email: 'aluno.teste@edu.unifor.br', roles: ['student'], course: 'Ciências da Computação'
   },
   {
-    id: 'monitor-1', name: 'Lucas Carlos Bezerra', registration: '2510456',
-    email: 'lucas@edu.unifor.br', roles: ['student', 'monitor'], course: 'Ciência da Computação'
+    id: 'monitor-1', name: 'Monitor de teste', registration: '1000002',
+    email: 'monitor.teste@edu.unifor.br', roles: ['student', 'monitor'], course: 'Ciências da Computação'
   },
   {
-    id: 'professor-1', name: 'Lyndainês Santos', registration: 'DOC-1048',
-    email: 'liadina@unifor.br', roles: ['professor'], department: 'Centro de Ciências Tecnológicas'
+    id: 'professor-1', name: 'Professora de teste', registration: 'DOC-TESTE',
+    email: 'professora.teste@unifor.br', roles: ['professor'], department: 'Centro de Ciências Tecnológicas'
   }
 ];
 
@@ -81,7 +80,7 @@ export function createSeedState() {
     approvals: [],
     auditLogs: [],
     passwordRecoveryRequests: [],
-    settings: { cancellationWindowHours: 2 },
+    settings: { cancellationWindowHours: 2, attendanceCodeMinutes: 20, attendanceEarlyWindowMinutes: 15, attendanceLateWindowMinutes: 30, manualAttendanceGraceHours: 24 },
     notifications: [
       { id: 'notification-1', userId: 'student-1', title: 'Bem-vindo ao MoniMob', body: 'Encontre monitorias das disciplinas atuais do curso.', read: false }
     ]

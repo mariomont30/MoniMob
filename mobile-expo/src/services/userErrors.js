@@ -14,6 +14,7 @@ const MESSAGES = {
   'auth/weak-password': 'Use uma senha mais forte, com pelo menos oito caracteres.',
   'auth/network-request-failed': CONNECTION_MESSAGE,
   'auth/too-many-requests': 'Muitas tentativas. Aguarde um pouco e tente novamente.',
+  EMAIL_NOT_VERIFIED: 'Confirme seu e-mail institucional pelo link enviado antes de entrar.',
   'auth/user-disabled': 'Esta conta está desativada. Entre em contato com a instituição.',
   'permission-denied': 'Sua conta não tem acesso a esses dados.',
   unavailable: CONNECTION_MESSAGE,

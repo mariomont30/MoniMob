@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoniMob",
     "slug": "monimob",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "monimob",
@@ -14,7 +14,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "package": "br.edu.unifor.monimob",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0345ED",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

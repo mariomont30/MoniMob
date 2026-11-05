@@ -1,8 +1,19 @@
 # Testes executados
 
-Este documento reúne os resultados obtidos durante o desenvolvimento até **3 de novembro de 2026**. As suítes de código permanecem no repositório. Os resultados de dispositivo descrevem as configurações efetivamente exercitadas.
+Este documento reúne os resultados obtidos durante o desenvolvimento até **4 de novembro de 2026**. As suítes de código permanecem no repositório. Os resultados de dispositivo descrevem as configurações efetivamente exercitadas.
 
-## Código e integração
+## Versão 1.0.3
+
+- **127 testes de código aprovados**: 69 do aplicativo e 58 do backend.
+- **27 verificações locais de Firebase aprovadas**: 8 de persistência, 15 de regras, 1 fluxo de Authentication/API e 3 de concorrência.
+- **23 verificações Android concluídas** na nova interface, incluindo filtros avançados, recomendações, reserva persistida após reabrir, escalas de fonte, orientação, perfis e CSV.
+- Abertura aprovada verificada no Expo Go em quatro configurações de tela e fonte; a mesma identidade está presente no APK, no ícone com degradê azul e na capa do README.
+- Contraste dos textos secundários e dos botões verificado nas superfícies utilizadas.
+- Integração real com o Gemini exercitada, com chave mantida no backend.
+
+Os resultados de 3 de novembro abaixo são mantidos como histórico da versão anterior. As alterações da nova interface foram verificadas separadamente.
+
+## Código e integração — histórico
 
 | Grupo executado | Resultado |
 |:--|:--|

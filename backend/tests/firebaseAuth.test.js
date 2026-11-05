@@ -45,7 +45,7 @@ async function ask(baseUrl, token, role = 'student') {
 test('Firebase aceita usuário com token e perfil autorizados', async () => {
   await withServer({
     verifyFirebaseToken: async () => ({
-      userId: 'firebase-student-1'
+      userId: 'firebase-student-1', emailVerified: true
     }),
     getFirebaseRoles: async () => ['student']
   }, async baseUrl => {
@@ -72,7 +72,7 @@ test('Firebase rejeita token inválido', async () => {
 test('Firebase bloqueia usuário sem perfil autorizado', async () => {
   await withServer({
     verifyFirebaseToken: async () => ({
-      userId: 'firebase-student-1'
+      userId: 'firebase-student-1', emailVerified: true
     }),
     getFirebaseRoles: async () => []
   }, async baseUrl => {
@@ -85,7 +85,7 @@ test('Firebase bloqueia usuário sem perfil autorizado', async () => {
 test('Firebase impede aluno de assumir perfil de professor', async () => {
   await withServer({
     verifyFirebaseToken: async () => ({
-      userId: 'firebase-student-1'
+      userId: 'firebase-student-1', emailVerified: true
     }),
     getFirebaseRoles: async () => ['student']
   }, async baseUrl => {

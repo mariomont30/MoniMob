@@ -22,8 +22,8 @@ test('Auth emulator login, real ID token verification, claims bootstrap and prot
   const created = await authRequest('signUp', { email, password, returnSecureToken: true });
   const auth = getFirebaseAdminAuth();
   const db = getFirestore();
-  await db.collection('users').doc(created.localId).set({ id: created.localId, name: 'Test student', email, registration: 'TEST', course: 'Ciência da Computação', roles: ['student'] });
-  const signedIn = await authRequest('signInWithPassword', { email, password, returnSecureToken: true });
+  await db.collection('users').doc(created.localId).set({ id: created.localId, name: 'Test student', email, registration: 'TEST', course: 'Ciências da Computação', roles: ['student'] });
+  let signedIn = await authRequest('signInWithPassword', { email, password, returnSecureToken: true });
   assert.equal((await verifyFirebaseToken(signedIn.idToken)).userId, created.localId);
   assert.deepEqual(await getFirebaseRoles(created.localId), ['student']);
   assert.deepEqual((await auth.getUser(created.localId)).customClaims.roles, ['student']);
@@ -32,8 +32,18 @@ test('Auth emulator login, real ID token verification, claims bootstrap and prot
   const base = 'http://127.0.0.1:' + server.address().port;
   try {
     const state = await fetch(base + '/api/state?role=student', { headers: { authorization: 'Bearer ' + signedIn.idToken } });
-    assert.equal(state.status, 200);
-    const result = await state.json();
+    assert.equal(state.status, 403);
+    assert.equal((await state.json()).code, 'EMAIL_NOT_VERIFIED');
+    await authRequest('sendOobCode', { requestType: 'VERIFY_EMAIL', idToken: signedIn.idToken });
+    const verificationCodes = await (await fetch('http://' + process.env.FIREBASE_AUTH_EMULATOR_HOST + '/emulator/v1/projects/demo-monimob/oobCodes')).json();
+    const verification = verificationCodes.oobCodes.find(item => item.email === email && item.requestType === 'VERIFY_EMAIL');
+    assert.ok(verification?.oobCode);
+    await authRequest('update', { oobCode: verification.oobCode });
+    signedIn = await authRequest('signInWithPassword', { email, password, returnSecureToken: true });
+    assert.equal((await verifyFirebaseToken(signedIn.idToken)).emailVerified, true);
+    const verifiedState = await fetch(base + '/api/state?role=student', { headers: { authorization: 'Bearer ' + signedIn.idToken } });
+    assert.equal(verifiedState.status, 200);
+    const result = await verifiedState.json();
     assert.equal(result.state.users.find(item => item.id === created.localId).email, email);
     const forged = await fetch(base + '/api/state?role=professor', { headers: { authorization: 'Bearer ' + signedIn.idToken } });
     assert.equal(forged.status, 403);

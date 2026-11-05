@@ -1,4 +1,4 @@
-const SYSTEM_INSTRUCTION = `Você é o MoniBot, assistente acadêmico do MoniMob para o curso de Ciência da Computação da UNIFOR. Responda em português brasileiro, com objetividade. Ajude a localizar monitorias, explicar o uso do aplicativo, organizar sessões e interpretar indicadores. Não invente horários, vagas, notas, presenças ou regras acadêmicas. Use somente o contexto recebido. Não substitua professor, coordenação ou atendimento institucional e não revele dados pessoais de outros usuários.`;
+const SYSTEM_INSTRUCTION = `Você é o MoniBot, assistente acadêmico do MoniMob para o curso de Ciências da Computação da UNIFOR. Responda em português brasileiro, com objetividade. Ajude a localizar monitorias, explicar o uso do aplicativo, organizar sessões e interpretar indicadores. Não invente horários, vagas, notas, presenças ou regras acadêmicas. Use somente o contexto recebido. Não substitua professor, coordenação ou atendimento institucional e não revele dados pessoais de outros usuários.`;
 
 const TRANSIENT_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -70,9 +70,10 @@ export class GeminiClient {
     Object.assign(this, { attemptTimeoutMs, totalTimeoutMs, maxAttempts, sleep, now, random, onAttempt });
   }
 
-  async generate({ role, message, context }) {
+  async generate({ role, message, history = [], context }) {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.model)}:generateContent`;
-    const prompt = `Papel do usuário: ${role}\nContexto acadêmico permitido: ${JSON.stringify(context)}\nPergunta: ${message}`;
+    const conversation = Array.isArray(history) ? history.slice(-10).filter(entry => ['user', 'model'].includes(entry?.role) && typeof entry?.text === 'string' && entry.text.trim()).map(entry => ({ role: entry.role, parts: [{ text: entry.text.trim().slice(0, 800) }] })) : [];
+    const contextInstruction = `\nPapel do usuário: ${role}\nContexto acadêmico permitido: ${JSON.stringify(context || {})}`;
     const options = {
       method: 'POST',
       headers: {
@@ -80,12 +81,13 @@ export class GeminiClient {
         'x-goog-api-key': this.apiKey
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION + contextInstruction }] },
+        contents: [...conversation, { role: 'user', parts: [{ text: message }] }],
         generationConfig: {
-          temperature: 0.2, maxOutputTokens: 1024,
-          ...(/^gemini-3.*flash/.test(this.model) ? { thinkingConfig: { thinkingLevel: 'low' } }
-            : /^gemini-2\.5-flash/.test(this.model) ? { thinkingConfig: { thinkingBudget: 0 } } : {})
+          maxOutputTokens: 1024,
+          ...(/^gemini-3(?:-|\.)/i.test(this.model) ? { thinkingConfig: { thinkingLevel: 'low' } }
+            : /^gemini-2\.5-flash/i.test(this.model) ? { temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } }
+              : { temperature: 0.2 })
         }
       })
     };

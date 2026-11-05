@@ -7,7 +7,7 @@ async function withServer(run) {
   const calls = [];
   const server = createMoniBotServer({
     geminiClient: { generate: async input => { calls.push(input); return 'Resposta acadêmica segura.'; } },
-    verifyFirebaseToken: async token => { if (token !== 'test.firebase.token') throw new Error('Invalid token'); return { userId: 'test-student' }; },
+    verifyFirebaseToken: async token => { if (token !== 'test.firebase.token') throw new Error('Invalid token'); return { userId: 'test-student', emailVerified: true }; },
     getFirebaseRoles: async () => ['student'],
     allowedOrigins: ['http://localhost:8081'],
     rateLimit: 10

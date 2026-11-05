@@ -52,11 +52,14 @@ test('AI context is rebuilt from authorized server data, excluding identity and 
   assert.doesNotMatch(json, /mario@|2526319|attendanceCodes|registration|pendingCount/);
   assert.equal(context.source, 'MoniMob Cloud Firestore');
 });
-test('client time and code lifetime overrides are ignored', () => {
+test('client time and code lifetime overrides are ignored', context => {
   const value = state();
+  const session = value.sessions.find(item => item.id === 'session-1');
+  const now = Date.parse(`${session.date}T${session.time}:00-03:00`) - 10 * 60000;
+  context.mock.method(Date, 'now', () => now);
   const code = applyAction(value, monitor, 'monitor', 'generateAttendanceCode', { sessionId: 'session-1', now: 0, lifetimeMinutes: 999999 });
   assert.match(code.code, /^\d{6}$/);
-  assert.ok(Date.parse(code.createdAt) > 1000000);
+  assert.equal(Date.parse(code.createdAt), now);
   assert.equal(Date.parse(code.expiresAt) - Date.parse(code.createdAt), 20 * 60000);
 });
 test('reminders are persistent and do not duplicate after the next scheduled execution', async () => {

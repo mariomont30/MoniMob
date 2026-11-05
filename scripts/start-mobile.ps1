@@ -11,4 +11,4 @@ $env:__UNSAFE_EXPO_HOME_DIRECTORY = $expoHome
 $env:npm_config_cache = $npmCache
 
 Set-Location (Join-Path $projectRoot 'mobile-expo')
-npm.cmd start
+node (Join-Path $PSScriptRoot 'start-mobile.mjs') @args

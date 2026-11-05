@@ -54,12 +54,16 @@ test('Firestore student CRUD flow persists favorites, reservation, attendance an
   const monitor = { sub: 'monitor-1', roles: ['monitor', 'student'] };
   const reservation = await service.execute(user, 'student', command('student_reserve_01', 'reserve', { sessionId: 'session-1' }));
   await service.execute(user, 'student', command('student_favorite01', 'toggleFavorite', { sessionId: 'session-1' }));
+  await service.execute(user, 'student', command('student_cancel_01', 'cancelReservation', { reservationId: reservation.id }));
+  const activeReservation = await service.execute(user, 'student', command('student_reserve_02', 'reserve', { sessionId: 'session-1' }));
+  const localStart = new Date(Date.now() + 10 * 60_000 - 3 * 3_600_000).toISOString();
+  await db.doc('sessions/session-1').update({ date: localStart.slice(0, 10), time: localStart.slice(11, 16) });
   const code = await service.execute(monitor, 'monitor', command('monitor_code_0001', 'generateAttendanceCode', { sessionId: 'session-1' }));
   await service.execute(user, 'student', command('student_attend_01', 'registerAttendance', { sessionId: 'session-1', code: code.code }));
   await assert.rejects(service.execute(user, 'student', command('student_attend_02', 'registerAttendance', { sessionId: 'session-1', code: code.code })), /registrada/);
-  await service.execute(user, 'student', command('student_cancel_01', 'cancelReservation', { reservationId: reservation.id }));
   const state = await service.read(user, 'student');
-  assert.equal(state.reservations[0].status, 'cancelled');
+  assert.equal(state.reservations.find(item => item.id === reservation.id).status, 'cancelled');
+  assert.equal(state.reservations.find(item => item.id === activeReservation.id).status, 'confirmed');
   assert.equal(state.favorites.length, 1); assert.equal(state.attendance.length, 1);
   assert.deepEqual(state.attendanceCodes, []);
 });

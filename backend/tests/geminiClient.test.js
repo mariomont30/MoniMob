@@ -119,3 +119,25 @@ test('integração real com Gemini é opcional e só roda com GEMINI_API_KEY', {
   const answer = await client.generate({ role: 'student', message: 'Responda apenas: OK', context: { screen: 'test' } });
   assert.ok(answer.length > 0);
 });
+
+
+test('Gemini mantém o histórico em turnos user/model e aplica configuração compatível com Gemini 3', async () => {
+  let body;
+  const client = new GeminiClient({ apiKey: 'test', model: 'gemini-3.6-flash', fetchImpl: async (_, options) => {
+    body = JSON.parse(options.body);
+    return success('Amanhã também há monitorias de Java.');
+  } });
+  const answer = await client.generate({
+    role: 'student', message: 'E amanhã?', context: { sessions: [{ topic: 'Java' }] },
+    history: [
+      { role: 'user', text: 'Quero estudar Java.' },
+      { role: 'model', text: 'Há monitorias de Java no catálogo.' }
+    ]
+  });
+  assert.match(answer, /amanhã/i);
+  assert.deepEqual(body.contents.slice(0, 2).map(item => item.role), ['user', 'model']);
+  assert.equal(body.contents[2].parts[0].text, 'E amanhã?');
+  assert.equal(body.generationConfig.temperature, undefined);
+  assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'low');
+  assert.match(body.systemInstruction.parts[0].text, /Contexto acadêmico permitido/);
+});
