@@ -1,0 +1,85 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam roundcorner 16
+skinparam ArrowColor #60779A
+skinparam actorBorderColor #132190
+skinparam actorFontColor #132190
+skinparam usecaseBorderColor #3462D9
+skinparam usecaseBackgroundColor #F1F5FF
+skinparam packageBorderColor #A9BCE6
+skinparam packageBackgroundColor #FCFDFF
+skinparam noteBackgroundColor #E8F3FF
+skinparam noteBorderColor #A9BCE6
+title MoniMob | Casos de uso da versão 1.7.4
+
+actor "Pessoa usuária" as User
+actor Aluno as Student
+actor Monitor as Tutor
+actor Professor as Teacher
+actor "Firebase\nAuthentication" as Auth <<externo>>
+actor "Google Gemini" as Gemini <<externo>>
+Student --|> User
+Tutor --|> User
+Teacher --|> User
+
+rectangle "MoniMob - apoio às monitorias de Ciências da Computação" {
+  usecase "Cadastrar, confirmar e-mail,\nentrar e recuperar senha" as Account
+  usecase "Gerenciar perfil, sair\ne excluir conta" as Profile
+  usecase "Consultar MoniBot" as Bot
+  usecase "Consultar materiais publicados\ne avisos internos" as Library
+  usecase "Buscar, favoritar\ne reservar monitorias" as Book
+  usecase "Gerenciar agenda, cancelar\ne entrar na lista de espera" as Agenda
+  usecase "Registrar presença\ncom código temporário" as Attendance
+  usecase "Solicitar vínculo acadêmico" as Request
+  usecase "Criar e gerenciar monitorias\nno intervalo autorizado" as Sessions
+  usecase "Enviar, corrigir e reenviar\nmateriais para análise" as Submit
+  usecase "Gerenciar participantes,\ncódigos e presença" as Participants
+  usecase "Vincular disciplinas\ne aprovar monitores" as Assign
+  usecase "Analisar monitorias\ne materiais" as Review
+  usecase "Solicitar ajustes\ncom comentário" as Changes
+  usecase "Publicar e excluir\nmateriais da disciplina" as Publish
+  usecase "Consultar indicadores\ne exportar relatório CSV" as Reports
+}
+
+User --> Account
+User --> Profile
+User --> Bot
+User --> Library
+Student --> Book
+Student --> Agenda
+Student --> Attendance
+Tutor --> Request
+Tutor --> Sessions
+Tutor --> Submit
+Tutor --> Participants
+Teacher --> Assign
+Teacher --> Review
+Teacher --> Publish
+Teacher --> Reports
+Changes ..> Review : <<extend>>
+Teacher --> Changes
+Account --> Auth
+Bot --> Gemini
+
+note bottom of Sessions
+  A publicação inicial válida é imediata.
+  Após ajustes solicitados, o reenvio
+  aguarda nova aprovação do professor.
+end note
+note bottom of Submit
+  Materiais do monitor só ficam públicos
+  após a aprovação do professor.
+  O monitor exclui seus próprios materiais.
+end note
+legend bottom
+  Cada operação respeita o perfil ativo e os vínculos acadêmicos.
+  O monitor usa a área de Aluno ao trocar de perfil.
+  Confirmação de e-mail ativa o perfil escolhido;
+  aprovação de vínculo é uma decisão acadêmica separada.
+endlegend
+@enduml

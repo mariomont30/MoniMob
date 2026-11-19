@@ -3,7 +3,9 @@
     "rules": "firestore.rules"
   },
   "emulators": {
-    "ui": { "enabled": false },
+    "ui": {
+      "enabled": false
+    },
     "firestore": {
       "host": "127.0.0.1",
       "port": 8080
@@ -27,7 +29,9 @@
         ".env",
         ".env.*",
         "tests",
-        "*.log"
+        "*.log",
+        "credentials",
+        "credentials/**"
       ],
       "predeploy": [
         "node scripts/sync-domain.mjs"

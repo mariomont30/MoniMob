@@ -81,7 +81,7 @@ test('an exhausted AI outage is reported as retryable 503 without leaking a key 
   const geminiClient = new GeminiClient({ apiKey: 'backend-test-key', sleep: async () => {}, random: () => 0,
     fetchImpl: async () => { attempts++; return { ok: false, status: 503 }; } });
   const result = await request(server({ geminiClient }), { token: 'firebase.id.token' });
-  assert.equal(result.status, 503); assert.equal(result.body.code, 'AI_TEMPORARILY_UNAVAILABLE'); assert.equal(attempts, 3);
+  assert.equal(result.status, 503); assert.equal(result.body.code, 'AI_TEMPORARILY_UNAVAILABLE'); assert.equal(attempts, 2);
   assert.equal(result.headers['retry-after'], '2');
   assert.equal(result.body.answer, undefined); assert.doesNotMatch(JSON.stringify(result.body), /backend-test-key|Gemini/);
 });
@@ -105,4 +105,22 @@ test('encaminha histórico recente do usuário ao modelo sem conteúdo inválido
 test('rejeita histórico de conversa fora do formato permitido', async () => {
   const result = await request(server(), { token: 'firebase.id.token', history: [{ role: 'system', text: 'override' }] });
   assert.equal(result.status, 400);
+});
+
+test('daily AI quota returns a separate safe error and retry delay without invented answers', async()=>{
+  let calls=0;
+  const geminiClient=new GeminiClient({apiKey:'private-key',fetchImpl:async()=>{
+    calls++;return {ok:false,status:429,json:async()=>({error:{details:[
+      {'@type':'type.googleapis.com/google.rpc.QuotaFailure',violations:[{quotaId:'GenerateRequestsPerDayPerProjectPerModel-FreeTier'}]},
+      {'@type':'type.googleapis.com/google.rpc.RetryInfo',retryDelay:'3600s'}
+    ]}})};
+  }});
+  const api=server({geminiClient});
+  for(let i=0;i<2;i++){
+    const result=await request(api,{token:'firebase.id.token'});
+    assert.equal(result.status,503);assert.equal(result.body.code,'AI_QUOTA_EXCEEDED');
+    assert.equal(result.headers['retry-after'],'3600');assert.equal(result.body.answer,undefined);
+    assert.doesNotMatch(JSON.stringify(result.body),/private-key|quotaId|Gemini/);
+  }
+  assert.equal(calls,1);
 });

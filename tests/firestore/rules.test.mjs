@@ -36,6 +36,19 @@ test('owner reads own profile and changes only name', async () => {
   await assertSucceeds(getDoc(ref));
   await assertSucceeds(updateDoc(ref, { name: 'Novo Nome' }));
 });
+
+test('public discovery permits only the exact document read, never writes or listing', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'appConfig/connection'), { projectId:'demo-monimob', apiUrl:'https://active.trycloudflare.com', schemaVersion:1 });
+  });
+  for(const client of [env.unauthenticatedContext().firestore(),db()]) {
+    assert.equal((await assertSucceeds(getDoc(doc(client,'appConfig/connection')))).data().projectId,'demo-monimob');
+    await assertFails(getDocs(collection(client,'appConfig')));
+    await assertFails(getDoc(doc(client,'appConfig/private')));
+    await assertFails(setDoc(doc(client,'appConfig/connection'),{apiUrl:'https://attacker.example.com'}));
+    await assertFails(deleteDoc(doc(client,'appConfig/connection')));
+  }
+});
 test('new password account atomically creates its profile and unique student registration', async () => {
   const client = db('bob');
   const batch = writeBatch(client);
@@ -135,8 +148,16 @@ test('administratively assigned roles remain intact during name update', async (
   await assertFails(updateDoc(doc(db(), 'users/alice'), { approved: false }));
 });
 test('other collections and subcollections stay blocked', async () => {
-  for (const path of ['sessions/example', 'users/alice/private/example']) {
+  for (const path of ['sessions/example', 'users/alice/private/example', 'materialFiles/example', 'materialFiles/example/parts/000', 'linkRequests/example', 'academicEvents/example']) {
     await assertFails(getDoc(doc(db(), path)));
     await assertFails(setDoc(doc(db(), path), { name: 'Exemplo' }));
   }
+});
+
+
+test('deleted or pending account cannot restore identifying profile fields using a cached token',async()=>{
+ for(const deletionPending of [true,false]){
+  await env.withSecurityRulesDisabled(async context=>setDoc(doc(context.firestore(),'users/alice'),{id:'alice',name:'Conta excluída',roles:[],disabled:true,deletionPending,registrationStatus:deletionPending?'deleting':'deleted'}));
+  await assertFails(updateDoc(doc(db(),'users/alice'),{name:'Restored name'}));
+ }
 });

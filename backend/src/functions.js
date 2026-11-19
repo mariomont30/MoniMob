@@ -8,12 +8,18 @@ import { sendReminders } from './reminders.js';
 import { createRuntime } from './runtime.js';
 const geminiKey = defineSecret('GEMINI_API_KEY');
 let handler;
-export const monimobApi = onRequest({ region: 'southamerica-east1', secrets: [geminiKey], timeoutSeconds: 60, memory: '256MiB', maxInstances: 5 }, (request, response) => {
-  try { handler ||= createRuntime(); }
-  catch { response.status(503).json({ error: 'Serviço indisponível.' }); return; }
+export const monimobApi = onRequest({ region: 'southamerica-east1', secrets: [geminiKey], timeoutSeconds: 60, memory: '256MiB', maxInstances: 5 }, async (request, response) => {
+  try { handler ||= createRuntime(); await handler.ready; }
+  catch { handler = null; response.status(503).json({ error: 'Não foi possível preparar o catálogo acadêmico. Tente novamente.' }); return; }
   return handler(request, response);
 });
 export const monitoringReminders = onSchedule({ schedule: 'every 60 minutes', timeZone: 'America/Sao_Paulo', region: 'southamerica-east1', maxInstances: 1 }, async () => {
   getFirebaseAdminAuth();
-  await sendReminders(new FirestoreStore(getFirestore()));
+  const store = new FirestoreStore(getFirestore());
+  const {AccountDeletionService} = await import('./accountDeletion.js');
+  await new AccountDeletionService({auth:getFirebaseAdminAuth(),db:getFirestore(),store}).recoverPending();
+  const {AcademicService} = await import('./academicService.js');
+  const {MaterialFileService} = await import('./materialFiles.js');
+  await new MaterialFileService({db:getFirestore(),academicService:new AcademicService(store)}).recover();
+  await sendReminders(store);
 });

@@ -1,89 +1,72 @@
-# Configuração do MoniMob
+# Configuração local
 
-O código utiliza Firebase Authentication, Cloud Firestore e uma API Node.js. A distribuição pública não inclui contas prontas, credenciais administrativas ou registros de demonstração. Cada instalação do código precisa da configuração do seu próprio ambiente.
+O repositório público contém o código e exemplos de configuração. As chaves
+privadas devem permanecer somente no computador ou no ambiente do servidor.
 
-## Firebase e aplicativo
+## Pré-requisitos
 
-1. Crie ou selecione um projeto Firebase sob sua administração.
-2. Habilite o provedor **E-mail/senha** no Authentication e configure um banco Cloud Firestore.
-3. Registre um aplicativo Web no mesmo projeto para obter os parâmetros usados pelo SDK JavaScript do aplicativo.
-4. Copie `mobile-expo/.env.example` para `mobile-expo/.env`. Preencha os valores `EXPO_PUBLIC_FIREBASE_*` a partir da configuração do aplicativo Web.
-5. Defina `EXPO_PUBLIC_MONIMOB_API_URL` com o endereço HTTPS acessível da API. Reinicie o Expo após alterar as variáveis.
+- Node.js 22 e npm.
+- VS Code e Expo Go compatível com o SDK do projeto.
+- Um projeto Firebase próprio, com Authentication por e-mail/senha e Firestore.
+- Uma chave Gemini válida no backend para usar o MoniBot.
 
-Os parâmetros `EXPO_PUBLIC_*` são incorporados ao aplicativo e podem ser lidos por quem o instala. Eles não podem receber senhas, chaves privadas da IA ou credenciais administrativas. A configuração pública do Firebase identifica o projeto; a autorização depende do Authentication, das regras e das verificações do backend.
+## Preparar a aplicação
 
-O aplicativo exige `API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID` e `APP_ID`. Os demais campos públicos são opcionais e devem corresponder ao mesmo projeto.
+Na raiz do projeto, copie os exemplos:
 
-## Cadastro e atualização de contas
-
-O cadastro de aluno aceita e-mails `@edu.unifor.br` e `@unifor.br`, matrícula com 4 a 64 caracteres alfanuméricos, ponto, hífen ou sublinhado, e senha com pelo menos oito caracteres. O link enviado pelo Firebase precisa ser confirmado antes do acesso. Na tela de entrada, uma conta ainda não confirmada pode solicitar o reenvio do link.
-
-A matrícula é reservada em um índice único no mesmo lote do perfil. Antes de publicar estas regras em um projeto com usuários, execute a prévia administrativa:
-
-```bash
-node --env-file-if-exists=backend/.env backend/scripts/backfill-registration-index.mjs --project SEU_PROJETO
+```powershell
+Copy-Item backend/.env.example backend/.env
+Copy-Item mobile-expo/.env.example mobile-expo/.env
 ```
 
-A prévia não grava dados. O parâmetro `--apply` cria os índices após a conferência completa de duplicidades e conflitos. Os perfis e as matrículas anteriores são preservados; registros legados fora do formato permitido ao novo cadastro não são alterados nem recebem números inventados.
+Preencha os identificadores do aplicativo Web no arquivo do mobile. No backend,
+configure o mesmo projeto Firebase, a chave Gemini e o caminho de um JSON
+autorizado do Firebase Admin SDK. Guarde esse JSON em
+`backend/credentials/firebase-admin.json`, fora do Git. Não coloque chaves do
+Gemini ou do Admin SDK em variáveis `EXPO_PUBLIC_`.
 
-## Backend
+O identificador do projeto no cliente, no servidor e na credencial
+administrativa deve ser o mesmo. O identificador de Analytics é opcional.
 
-Instale as dependências com `npm ci --prefix backend`. Copie `backend/.env.example` para `backend/.env` e configure:
+Instale as dependências e publique as regras **no seu próprio projeto**:
 
-| Variável | Uso |
-|:--|:--|
-| `GCLOUD_PROJECT` | Identificador do projeto Firebase |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Caminho absoluto de uma credencial local autorizada, mantida fora do repositório |
-| `GEMINI_API_KEY` | Chave privada da IA, exclusiva do servidor |
-| `GEMINI_MODEL` | Modelo disponível para a chave configurada |
-| `PORT` | Porta local da API, inicialmente 8787 |
-| `ALLOWED_ORIGINS` | Origens Web autorizadas, separadas por vírgula |
-
-O Firebase Admin SDK também aceita as credenciais padrão do ambiente. Em infraestrutura gerenciada, utilize a identidade do serviço com as permissões necessárias. Não coloque um JSON administrativo dentro do código do aplicativo.
-
-Execute `npm run start:backend` na raiz do projeto. Para testar no aparelho, disponibilize a API por HTTPS e use esse endereço no ambiente do aplicativo. O túnel temporário precisa permanecer ativo enquanto estiver sendo usado.
-
-O arquivo `firestore.rules` contém as regras do projeto. Publique-as no **projeto correto** com uma sessão administrativa autorizada:
-
-```bash
-npx firebase-tools deploy --only firestore:rules --project SEU_PROJETO
+```powershell
+npm.cmd run instalar
+npm.cmd run firebase:regras
+npm.cmd run iniciar
 ```
 
-Essa operação altera as regras do projeto indicado. A configuração local dos arquivos não publica serviços nem habilita cobrança.
+O inicializador também prepara dependências ausentes. Use somente uma execução
+por vez e mantenha o terminal aberto. No celular, leia o QR Code no Expo Go.
+Para conexão local, use a mesma rede do computador e permita o acesso ao
+servidor no firewall quando o Windows solicitar.
 
-## Perfis e vínculos acadêmicos
+A URL do backend é descoberta e propagada pelo inicializador. Não é necessário
+digitar um endereço de servidor no aplicativo. No Windows x64, o utilitário de
+túnel ausente é baixado da distribuição oficial com verificação SHA-256. Outros
+ambientes podem fornecer o caminho em `MONIMOB_CLOUDFLARED`; esses ambientes
+precisam de validação própria.
 
-O cadastro público cria uma conta de aluno. Monitores e professores recebem seus papéis por administração autorizada, vinculados a contas existentes do Firebase Authentication. As disciplinas e os vínculos precisam representar os cadastros da instituição.
+## Cadastro e fluxo acadêmico
 
-O comando administrativo valida um arquivo local com as coleções `profiles`, `disciplines`, `monitorDisciplines` e `professorDisciplines`:
+O usuário escolhe Aluno, Monitor ou Professor e confirma o endereço por e-mail.
+A confirmação de e-mail ativa o perfil escolhido. Este cadastro não realiza
+verificação administrativa da identidade institucional.
 
-```bash
-node backend/scripts/admin.mjs --file CAMINHO_DO_ARQUIVO_LOCAL.json --project SEU_PROJETO
-```
+A aprovação acadêmica ocorre nos vínculos e nos materiais do Monitor. O
+Professor vincula suas disciplinas, recebe solicitações e aprova ou solicita
+ajustes. Somente conteúdos liberados ficam disponíveis ao Aluno.
 
-Sem `--apply`, o comando apenas valida a estrutura do arquivo. Com `--apply`, verifica as contas, grava os registros e sincroniza os papéis no Authentication. Guarde os arquivos com dados pessoais fora do repositório.
+O catálogo de disciplinas é informação de referência; usuários, reservas e
+monitorias devem ser criados pelos participantes, sem contas de demonstração.
 
-## Lembretes
+## Diagnóstico
 
-Com o ambiente do backend configurado, execute:
+Execute `npm.cmd run diagnostico` antes de iniciar se houver falhas de
+configuração. Se a instalação parar por falta de espaço, conclua a instalação
+antes de abrir o aplicativo. O backend precisa continuar ativo para atender às
+operações que dependem dele.
 
-```bash
-npm --prefix backend run reminders:local
-```
-
-O processo verifica os lembretes a cada hora; o primeiro ciclo ocorre após uma hora. O computador e o processo precisam continuar ligados. Os lembretes são avisos dentro do aplicativo e possuem controle de duplicidade.
-
-O código também inclui a função agendada do Firebase em `backend/src/functions.js`. Sua execução na nuvem depende de publicação e de uma infraestrutura compatível configurada pelo administrador; ela não é ativada ao baixar o APK.
-
-## Desenvolvimento isolado
-
-As suítes em `tests/firestore/` usam o projeto reservado `demo-monimob` nos emuladores locais de Authentication e Firestore. Esse nome identifica somente o ambiente de testes. As massas de teste ficam nas suítes e não são importadas pelo aplicativo em execução normal.
-
-Para executar essas verificações, instale Java compatível com o Firebase Emulator Suite e as dependências locais:
-
-```bash
-npm install --prefix tests/firestore
-npm run test:emulators
-```
-
-Não configure variáveis de emulador numa compilação de distribuição.
+O APK publicado está associado ao Firebase da distribuição acadêmica. Usar um
+Firebase diferente exige gerar outro APK com a configuração correspondente.
+Consulte [Android](instalacao/ANDROID.md) e [arquitetura](ARQUITETURA.md).

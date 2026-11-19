@@ -9,7 +9,8 @@ export async function getFirebaseRoles(userId) {
   const declared = Array.isArray(profile.data().roles) ? profile.data().roles : [];
   let roles = Array.isArray(record.customClaims?.roles) ? record.customClaims.roles : [];
   // Self-registration can bootstrap only the basic student permission.
-  // Privileged roles always require a trusted administrator and matching claims.
+  // Monitor/professor permissions require matching claims set by the trusted
+  // registration service after verification, or by an authorized administrator.
   if (!roles.length && declared.length === 1 && declared[0] === 'student') {
     roles = ['student'];
     await auth.setCustomUserClaims(userId, { ...record.customClaims, roles });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoniMob",
     "slug": "monimob",
-    "version": "1.0.3",
+    "version": "1.7.4",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "monimob",
@@ -18,14 +18,31 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "versionCode": 22,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "orientation": "default",
     "plugins": [
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-sharing",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

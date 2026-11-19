@@ -37,3 +37,14 @@ build/
 .idea/
 coverage/
 *.hprof
+
+# Execução particular
+.local-runtime/
+backend/credentials/
+tools/*.exe
+ENDERECO-DO-SERVIDOR.txt
+apk/
+
+tools/*.download
+
+tmp/

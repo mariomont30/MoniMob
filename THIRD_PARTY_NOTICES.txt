@@ -19,3 +19,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The opening chime (welcome-chime.wav) and outline navigation paths were created for MoniMob. The chime is synthesized locally; no third-party recording is included.
+
+Native date/time picker: @react-native-community/datetimepicker (MIT). See docs/licenses/datetimepicker-LICENSE.txt.

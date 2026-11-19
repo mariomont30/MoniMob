@@ -12,6 +12,13 @@ service cloud.firestore {
         && name.matches('.*[^ ].*');
     }
 
+    // This exact document exposes only the public backend origin. No client
+    // (including authenticated clients) may edit it or enumerate appConfig.
+    match /appConfig/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
     match /users/{uid} {
       allow get: if ownsProfile(uid) && request.auth.token.email_verified == true;
       allow list, delete: if false;
@@ -39,6 +46,7 @@ service cloud.firestore {
 
       // Also protects roles/fields provisioned later by an administrator.
       allow update: if ownsProfile(uid) && request.auth.token.email_verified == true
+        && resource.data.get('disabled', false) == false
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
         && validName(request.resource.data.name);
     }

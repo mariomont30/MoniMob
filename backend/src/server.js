@@ -1,4 +1,14 @@
 import { createServer } from 'node:http';
 import { createRuntime } from './runtime.js';
 const port = Number(process.env.PORT || 8787);
-createServer(createRuntime()).listen(port, '0.0.0.0', () => console.log('MoniMob API listening on port ' + port));
+const handler = createRuntime();
+await handler.ready;
+const recover = () => handler.recoverAccountDeletions().catch(() => console.error('Exclusão de conta: limpeza pendente será tentada novamente.'));
+void recover();
+const recovery = setInterval(recover,60000); recovery.unref();
+void handler.recoverMaterialFiles().catch(()=>console.error('Arquivos: recuperação pendente será tentada novamente.'));
+const filesRecovery = setInterval(()=>void handler.recoverMaterialFiles().catch(()=>{}),3600000);filesRecovery.unref();
+const server = createServer(handler);
+server.on('close',()=>clearInterval(filesRecovery));
+server.on('close',()=>clearInterval(recovery));
+server.listen(port, '0.0.0.0', () => console.log('MoniMob API listening on port ' + port));

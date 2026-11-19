@@ -1,152 +1,208 @@
-<div align="center">
+# MoniMob
 
-<img src="docs/assets/monimob-capa.png" alt="MoniMob — monitoria universitária em um só lugar" width="100%" />
+![MoniMob: monitoria acadêmica mais perto de você](docs/assets/monimob-capa.png)
 
-**Encontre uma monitoria. Reserve seu lugar. Aprenda em comunidade.**
+[![CI](https://github.com/mariomont30/MoniMob/actions/workflows/ci.yml/badge.svg)](https://github.com/mariomont30/MoniMob/actions/workflows/ci.yml)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.7.4-004AF7)](https://github.com/mariomont30/MoniMob/releases/tag/v1.7.4)
+[![Android](https://img.shields.io/badge/Android-7.0%2B-132190?logo=android&logoColor=white)](https://github.com/mariomont30/MoniMob/releases/download/v1.7.4/MoniMob-Android.apk)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-087D73)](LICENSE)
 
-[![Android](https://img.shields.io/badge/Android-APK_disponível-0755E9?style=for-the-badge&logo=android&logoColor=white)](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk)
-![React Native](https://img.shields.io/badge/React_Native-0.88-13213C?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Firebase](https://img.shields.io/badge/Firebase-Auth_·_Firestore-13213C?style=for-the-badge&logo=firebase&logoColor=FFCA28)
+[English](README.en.md) · [Baixar APK](#instalar-no-android) ·
+[Arquitetura](#decisões-de-engenharia) · [Casos de uso](#casos-de-uso) ·
+[Executar](#executar-o-código) · [Testes](#testes)
 
-[Baixar para Android](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk) · [Conhecer os recursos](#o-que-você-pode-fazer) · [Executar o projeto](#como-executar) · [Testes](#qualidade-em-prática)
+## O problema e a proposta
 
-</div>
+Encontrar uma monitoria, confirmar uma vaga e acompanhar materiais pode envolver
+informações espalhadas. O MoniMob reúne essa jornada em um aplicativo para
+**Ciências da Computação**, conectando **Aluno, Monitor e Professor**.
 
-## Monitoria mais perto de você
+O projeto nasceu no contexto acadêmico da Universidade de Fortaleza e é
+apresentado aqui como portfólio de engenharia de software. Não é um sistema
+institucional oficial. A interface do aplicativo é em português brasileiro.
 
-O **MoniMob** conecta alunos, monitores e professores em uma experiência para organizar monitorias universitárias. Da busca por uma disciplina à confirmação de presença, cada pessoa encontra as ferramentas da sua área, com acesso autenticado e dados persistidos no Firebase.
+**Uma jornada conectada:** vínculo acadêmico → monitoria → reserva → presença →
+acompanhamento, com materiais compartilhados e apoio do MoniBot.
 
-Desenvolvido no contexto acadêmico de **Ciências da Computação da Universidade de Fortaleza**, o projeto reúne organização de encontros, acompanhamento de participantes e o **MoniBot**, assistente que utiliza o contexto autorizado da conta para ajudar no uso do aplicativo.
+## Três perfis, responsabilidades claras
 
-## Baixe, instale e conheça
+| Perfil        | O que faz                                                                                                                                                               |
+| :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Aluno**     | Pesquisa e filtra encontros, salva favoritos, reserva vagas, acompanha a agenda, entra na fila de espera, consulta materiais publicados e registra presença por código. |
+| **Monitor**   | Solicita vínculo ao professor, publica monitorias no período autorizado, acompanha participantes e presença, envia materiais e corrige itens devolvidos para ajustes.   |
+| **Professor** | Supervisiona disciplinas, decide pedidos de vínculo, analisa monitorias e materiais, solicita ajustes com comentário, publica conteúdos e exporta relatórios CSV.       |
+| **Todos**     | Usam o MoniBot, recebem avisos internos, gerenciam a própria conta e podem encerrá-la com confirmação de identidade.                                                    |
 
-<table>
-<tr>
-<td align="center" width="50%">
-<a href="https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk"><img src="docs/assets/monimob-apk-qr.png" alt="QR Code para baixar o APK do MoniMob" width="230" /></a>
-<br /><strong>Aponte a câmera para baixar o APK</strong>
-<br /><sub>Android · versão 1.0.3-qa · arquivo hospedado no GitHub Releases</sub>
-</td>
-<td align="center" width="50%">
-<img src="docs/assets/monimob-inicio.png" alt="Tela inicial real do aplicativo MoniMob" width="185" />
-</td>
-</tr>
-</table>
+O perfil escolhido no cadastro é ativado após confirmar o e-mail. A aprovação do
+vínculo entre professor, monitor e disciplina é um processo separado, dentro do
+aplicativo. O monitor também pode acessar a área de Aluno.
 
-1. [Baixe o APK do MoniMob](https://github.com/mariomont30/MoniMob/releases/download/v1.0.3-qa/MoniMob-Android.apk) no celular Android.
-2. Abra o arquivo e autorize a instalação dessa origem, caso o sistema solicite.
-3. Abra o aplicativo e cadastre sua conta de aluno ou entre com uma conta autorizada.
+## Instalar no Android
 
-> **Conexão desta versão:** o APK usa Firebase e um backend HTTPS temporário. As operações remotas precisam de internet e do servidor de teste ativo no computador responsável. O QR Code baixa o APK diretamente; ele não é um QR Code do Expo Go. Veja o [guia de instalação](docs/instalacao/ANDROID.md).
+|                                            Download direto                                             | Antes de testar                                                                                                                                                                                                                                   |
+| :----------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <img src="docs/assets/monimob-apk-qr.png" width="220" alt="QR Code para baixar o APK MoniMob 1.7.4" /> | **[Baixar MoniMob para Android](https://github.com/mariomont30/MoniMob/releases/download/v1.7.4/MoniMob-Android.apk)**<br/>Android 7.0 ou superior. O QR Code baixa o instalador; não é o QR do Expo Go.<br/>A Release inclui o checksum SHA-256. |
 
-## O que você pode fazer
+O APK abre sem Expo Go. **As funções online precisam de internet e do backend
+ativo do ambiente correspondente.** Esta distribuição acadêmica utiliza o
+ambiente do mantenedor, que não é um serviço público com disponibilidade
+contínua. A conexão é descoberta automaticamente; não há endereço de servidor
+para preencher no aplicativo.
 
-| Área | Sua experiência no MoniMob |
-|:--|:--|
-| 🎓 **Aluno** | Buscar monitorias, aplicar filtros, reservar e cancelar vagas, acompanhar a agenda, favoritar encontros, acessar materiais e confirmar presença. |
-| 📚 **Monitor** | Organizar sessões, gerenciar materiais, consultar participantes e acompanhar presença e ausência. |
-| 🧭 **Professor** | Supervisionar disciplinas e monitores, avaliar publicações, solicitar ajustes e consultar relatórios com exportação em CSV. |
-| 💬 **MoniBot** | Pedir ajuda sobre o aplicativo e suas monitorias, com respostas baseadas nas informações autorizadas da conta. |
+Para executar uma cópia independente, configure seu próprio Firebase e Gemini
+conforme o [guia de configuração](docs/CONFIGURACAO.md). O APK distribuído não
+troca de projeto Firebase ao alterar os arquivos locais do clone.
 
-**Uma jornada conectada:** busca → reserva → agenda → presença → acompanhamento.
+## O que mudou na 1.7.4
 
-Reservas respeitam capacidade, conflitos e permissões. A fila de espera acompanha a liberação de vagas, e os avisos internos mantêm o aluno informado sobre seus encontros.
+- Próxima reserva do aluno na página inicial, catálogo ordenado por data e
+  materiais publicados acessíveis nos detalhes da monitoria.
+- Favoritos vinculados à conta, com acesso aos encontros e às recomendações.
+- Fluxo de vínculo com validade de data e horário. Toda a duração da monitoria
+  precisa caber no intervalo autorizado.
+- Materiais do professor publicados diretamente; materiais do monitor liberados
+  aos alunos somente após aprovação. Alterações geram uma nova revisão.
+- Página **Ajustes solicitados**, com disciplina, item, orientação do professor
+  e correção com reenvio para análise. A página atualiza os dados ao ser aberta.
+- Indicadores de demanda, fila de espera e ocupação, além de presença e
+  histórico acadêmico no CSV.
+- MoniBot com respostas concisas, contexto autorizado, filtragem adicional de
+  dados sensíveis e recuperação limitada em falhas temporárias.
+- Símbolo do aplicativo e pontos animados durante a consulta à IA. A animação
+  termina na resposta ou falha e respeita movimento reduzido.
+- Conta com exclusão confirmada, retorno à abertura com animação e som conforme
+  as preferências do dispositivo e campos com validações e mensagens de erro.
 
-## Por dentro do projeto
+Consulte o [changelog](CHANGELOG.md) para os detalhes desta atualização pública.
 
-| Camada | Tecnologias |
-|:--|:--|
-| Aplicativo | React Native · React · Expo SDK 58 · JavaScript |
-| Contas e dados | Firebase Authentication · Cloud Firestore |
-| Operações de confiança | Node.js · Firebase Admin SDK · Firebase Cloud Functions |
-| Assistente | Gemini, acessado pelo backend |
-| Arquivos e dispositivo | Expo FileSystem · Expo Sharing · armazenamento local da sessão |
+## Decisões de engenharia
 
-O aplicativo autentica a conta no Firebase e solicita as operações acadêmicas ao backend. O serviço verifica o perfil e o vínculo antes de consultar ou modificar os dados. A chave privada da IA fica no servidor.
+| Decisão                                 | Motivo e limite                                                                                                                                          |
+| :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **React Native + Expo SDK 58**          | Componentes compartilhados e desenvolvimento com Expo Go, preservando um projeto Android nativo. A exportação iOS não substitui validação em aparelho.   |
+| **Firebase Authentication + Firestore** | Identidade, confirmação de e-mail e persistência. A API verifica o usuário e o perfil antes das operações acadêmicas.                                    |
+| **Comandos idempotentes e transações**  | Evitam repetir uma gravação após perda de resposta e protegem capacidade e duplicidade de reservas sob concorrência.                                     |
+| **API Node.js separada**                | Centraliza autorização, regras, arquivos e acesso ao Gemini. Credenciais administrativas e de IA ficam fora do aplicativo.                               |
+| **Revisões de conteúdo**                | Impedem aprovar uma versão antiga após o monitor substituir o arquivo ou corrigir o item.                                                                |
+| **Anexos em partes no Firestore**       | Mantêm o desenho atual sem Cloud Storage, com limite de 5 MB por arquivo. Consomem leituras, gravações e armazenamento; não são armazenamento ilimitado. |
+| **Conexão automática por HTTPS**        | O iniciador publica o endereço ativo para descoberta pelo app. O túnel temporário e os lembretes locais dependem do processo em execução.                |
 
-A versão 1.0.3 apresenta a abertura com degradê azul e verde, o símbolo de livro com conversa e um ícone próprio para Android. A mesma identidade aparece na capa deste repositório. A atualização também recupera os filtros avançados e as recomendações, organiza as telas, mantém o histórico do MoniBot e exige confirmação do e-mail para o acesso.
+O domínio compartilhado fica em `mobile-expo/src/domain/`. Sua cópia para o
+backend é gerada por `npm run sync:domain` e conferida nos testes. Veja o
+[mapa do código e da arquitetura](docs/ARQUITETURA.md).
 
-## Como executar
+### MoniBot: IA com contexto e limites
 
-### 1 · Instale as dependências
+O caminho é **interface → API autenticada → contexto permitido → Gemini →
+resposta ou falha tratada**. A IA não recebe acesso direto ao banco e não
+executa reservas, aprovações, exclusões ou registros de presença.
 
-Use Node.js **22.13 ou superior na linha 22**, versão adotada também pelo backend Firebase, e npm.
+O modelo principal configurado é o Gemini 3.5 Flash-Lite, com pensamento mínimo
+e saída limitada. Uma falha temporária pode usar o Gemini 3.1 Flash-Lite na
+segunda tentativa, dentro do mesmo orçamento de espera. Erros de conta ou cota
+não são contornados com troca de modelo. Tempo de resposta e disponibilidade
+dependem do provedor e da conexão.
 
-```bash
+O histórico recente é mantido na tela. O contexto inclui dados e metadados
+permitidos; não existe leitura integral dos PDFs nem pesquisa vetorial sobre os
+anexos. Respostas de IA podem conter erros e não substituem decisões do
+professor.
+
+## Casos de uso
+
+[![Diagrama de casos de uso do MoniMob](docs/diagrams/use-cases.svg)](docs/diagrams/use-cases.svg)
+
+[Abrir imagem](docs/diagrams/use-cases.svg) ·
+[Editar a fonte PlantUML](docs/diagrams/use-cases.puml)
+
+O diagrama representa os três perfis e as integrações externas. A revisão do
+professor distingue a publicação inicial de uma monitoria do reenvio após um
+pedido de ajustes.
+
+## Executar o código
+
+Recomendado: **Node.js 22.13+ na linha 22**, npm e Windows x64. O APK e o fluxo
+principal de desenvolvimento são Android. Outros sistemas podem fornecer seu
+próprio `cloudflared` pela variável `MONIMOB_CLOUDFLARED`.
+
+```powershell
 git clone https://github.com/mariomont30/MoniMob.git
 cd MoniMob
-npm ci --prefix mobile-expo
-npm ci --prefix backend
+Copy-Item backend/.env.example backend/.env
+Copy-Item mobile-expo/.env.example mobile-expo/.env
 ```
 
-### 2 · Configure seu ambiente
+Preencha as duas configurações com seu projeto Firebase, habilite autenticação
+por e-mail/senha e configure a chave de serviço **somente no computador**. Siga
+o [guia completo](docs/CONFIGURACAO.md) para criar o ambiente e publicar as
+regras.
 
-Copie `mobile-expo/.env.example` para `mobile-expo/.env` e preencha a configuração pública do seu aplicativo Firebase e o endereço HTTPS do backend.
+Depois, na raiz:
 
-Copie `backend/.env.example` para `backend/.env` e configure o projeto Firebase, uma credencial autorizada e a chave Gemini. Esses arquivos locais ficam fora do Git.
-
-Os papéis de monitor e professor são vinculados por administração autorizada. O cadastro público cria uma conta de aluno. Consulte o [guia de configuração](docs/CONFIGURACAO.md).
-
-### 3 · Inicie os serviços
-
-```bash
-# Terminal 1: backend local
-npm run start:backend
-
-# Terminal 2: aplicativo Expo
-npm run start:mobile
+```powershell
+npm.cmd run iniciar
 ```
 
-Defina o endereço acessível do backend no ambiente do aplicativo. Para gerar o APK, consulte o [guia Android](docs/instalacao/ANDROID.md).
+O iniciador prepara dependências ausentes, baixa o `cloudflared` oficial com
+verificação de integridade no Windows x64, inicia o backend, abre o túnel HTTPS,
+publica a conexão e inicia o Expo. Computador e celular devem estar na mesma
+rede para o QR do Expo Go. Mantenha o terminal aberto durante o uso online.
 
-### 4 · Lembretes locais
+Para iniciar apenas os serviços usados pelo APK:
 
-```bash
-npm --prefix backend run reminders:local
+```powershell
+npm.cmd run iniciar:apk
 ```
 
-A rotina verifica os lembretes de hora em hora enquanto o processo e o computador permanecem ligados. O primeiro ciclo ocorre após uma hora. Os avisos aparecem dentro do MoniMob. O backend também contém a função agendada para ambientes Firebase configurados para essa execução.
+## Testes
 
-## Qualidade em prática
-
-As suítes de testes acompanham o código e podem ser executadas com:
-
-```bash
-npm test
+```powershell
+npm.cmd run instalar
+npm.cmd test
+node scripts/check-public.mjs
 ```
 
-| Verificação realizada | Resultado registrado |
-|:--|:--|
-| Testes de código da versão pública | **127 aprovados**, incluindo a configuração pública do Firebase |
-| Firebase em ambiente local | **27 verificações aprovadas** |
-| Responsividade Android | **320 dp com fonte 200%, paisagem e tablet verificados nesta versão** |
-| Arquivo CSV no Android | **6 verificações aprovadas**, com recebimento, abertura e conferência dos dados |
-| Lembretes com Firestore real | **3 ciclos automáticos locais**, com persistência e controle de duplicidade |
+A CI executa testes unitários, verificações da fonte pública e suítes com
+emuladores de Authentication e Firestore em um projeto `demo-`, sem credenciais
+reais. Os cenários incluem autorização, concorrência, capacidade, fila de
+espera, presença, arquivos, revisões e exclusão de contas. A integração real com
+Gemini é opcional e consome a cota do ambiente configurado.
 
-Também foram exercitados recuperação por e-mail real, permissões dos três perfis, atualização do APK preservando a sessão e uma amostra de navegação com TalkBack. Os resultados descrevem os ambientes executados; a documentação não apresenta uma certificação universal de dispositivos.
+Testes automatizados e compilação não são uma certificação de todos os
+dispositivos. O [guia técnico](docs/ARQUITETURA.md) descreve como executar as
+suítes e os limites do ambiente atual.
 
-Leia o [resumo dos testes executados](docs/testes/RESULTADOS.md). As massas das suítes ficam isoladas em pastas de teste; o aplicativo carrega os dados do Firebase e não cria registros de apresentação automaticamente.
-
-## Um lugar para cada parte
+## Organização
 
 ```text
 MoniMob/
-├── mobile-expo/       Aplicativo, componentes, serviços e testes
-├── backend/           API, regras de negócio e lembretes
-├── tests/firestore/   Verificações das regras e integração local
-├── scripts/           Comandos de execução e verificação da fonte
-├── docs/              Guias, identidade visual, QR Code e resultados
-└── firestore.rules    Regras de acesso às coleções
+├── mobile-expo/       Interface, domínio, recursos e projeto Android
+├── backend/           API autenticada, persistência, arquivos e MoniBot
+├── scripts/           Inicialização, instalação e verificações
+├── tests/firestore/   Testes das regras de acesso
+├── docs/              Configuração, arquitetura e diagramas
+└── .github/           Integração contínua e colaboração
 ```
 
-## Desenvolvimento
+## Evolução planejada
 
-Projeto mantido por [**Mário_DEV · @mariomont30**](https://github.com/mariomont30), no contexto da disciplina de Desenvolvimento para Plataformas Móveis.
+- Backend com hospedagem estável para demonstrações independentes do computador.
+- Entrega de notificações push, além dos avisos internos já existentes.
+- Validação contínua em dispositivos Android e iOS e ampliação da
+  acessibilidade.
+- Armazenamento dedicado para anexos e medições de uso em um piloto real.
 
-O texto de apresentação está em português, conforme a versão atual solicitada para o projeto. Os avisos de licença dos componentes utilizados estão preservados em `THIRD_PARTY_NOTICES.txt` e nos respectivos pacotes.
+Esses itens são próximos passos, não funcionalidades já entregues.
 
-<div align="center">
+## Autoria, colaboração e licença
 
-**MoniMob · Monitoria acadêmica mais simples, próxima e conectada.**
+Portfólio mantido por
+[Mário_DEV / @mariomont30](https://github.com/mariomont30), em contexto
+acadêmico colaborativo de Desenvolvimento para Plataformas Móveis.
 
-</div>
+[Contribuir](CONTRIBUTING.md) · [Reportar vulnerabilidade](SECURITY.md) ·
+[Licença MIT](LICENSE) · [Avisos de terceiros](THIRD_PARTY_NOTICES.txt)
+
+As marcas e recursos institucionais mantêm os direitos dos respectivos
+titulares. O repositório público utiliza exemplos de configuração; as
+credenciais do ambiente particular não são distribuídas com o código.

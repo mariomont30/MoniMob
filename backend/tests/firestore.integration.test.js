@@ -72,12 +72,13 @@ test('Firestore session and material CRUD includes teacher adjustment and reappr
   const monitor = { sub: 'monitor-1', roles: ['monitor', 'student'] };
   const professor = { sub: 'professor-1', roles: ['professor'] };
   const initial = (await service.read(monitor, 'monitor')).sessions[0];
-  const created = await service.execute(monitor, 'monitor', command('monitor_create_01', 'saveSession', { session: { ...initial, id: undefined, topic: 'New real persistence test' } }));
-  assert.equal(created.status, 'pending');
+  const created = await service.execute(monitor, 'monitor', command('monitor_create_01', 'saveSession', { session: { ...initial, id: undefined, date: new Date(Date.parse(initial.date+'T12:00:00Z')+7*86400000).toISOString().slice(0,10), topic: 'New real persistence test' } }));
+  assert.equal(created.status, 'approved');
   await service.execute(professor, 'professor', command('prof_adjust_0001', 'decideApproval', { entityType: 'session', entityId: created.id, decision: 'adjustments_requested', comment: 'Adjust content' }));
   const revised = await service.execute(monitor, 'monitor', command('monitor_revise_01', 'saveSession', { session: { ...created, topic: 'Revised content' } }));
   assert.equal(revised.status, 'pending');
-  await service.execute(professor, 'professor', command('prof_approve_001', 'decideApproval', { entityType: 'session', entityId: created.id, decision: 'approved' }));
+  assert.ok(!(await service.read(identity('student-1'), 'student')).sessions.some(item => item.id === created.id));
+  await service.execute(professor, 'professor', command('prof_approve_001', 'decideApproval', { entityType: 'session', entityId: created.id, decision: 'approved', expectedRevision: revised.revision }));
   const material = await service.execute(monitor, 'monitor', command('material_create01', 'saveMaterial', { material: { disciplineId: 'T390', title: 'Reference', type: 'Link', url: 'https://firebase.google.com/docs' } }));
   await service.execute(professor, 'professor', command('material_approve1', 'decideApproval', { entityType: 'material', entityId: material.id, decision: 'approved' }));
   await service.execute(monitor, 'monitor', command('material_archive1', 'archiveMaterial', { materialId: material.id }));

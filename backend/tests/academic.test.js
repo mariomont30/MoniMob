@@ -52,6 +52,32 @@ test('AI context is rebuilt from authorized server data, excluding identity and 
   assert.doesNotMatch(json, /mario@|2526319|attendanceCodes|registration|pendingCount/);
   assert.equal(context.source, 'MoniMob Cloud Firestore');
 });
+
+test('selecting a session keeps the rest of the permitted catalog and only the owner attendance', async () => {
+  const value=state();
+  const sample=value.sessions.find(item=>item.status==='approved');
+  value.sessions.push({...sample,id:'second-visible',topic:'Another permitted session'});
+  value.reservations.push({id:'own',studentId:student.sub,sessionId:sample.id,status:'confirmed'});
+  value.attendance.push({id:'own',studentId:student.sub,sessionId:sample.id,status:'present'},{id:'other',studentId:'someone-else',sessionId:sample.id,status:'absent'});
+  const service=new AcademicService({read:async()=>value});
+  const context=await service.aiContext(student,'student',{sessionId:sample.id});
+  assert.equal(context.selectedSessionId,sample.id);
+  assert.ok(context.sessions.some(item=>item.id==='second-visible'));
+  assert.deepEqual(context.ownAttendance,[{sessionId:sample.id,status:'present'}]);
+  assert.doesNotMatch(JSON.stringify(context),/someone-else|studentId/);
+  assert.equal((await service.aiContext(student,'student',{sessionId:'private-session'})).selectedSessionId,null);
+});
+
+test('AI context marks a truncated catalog and prioritizes the user reservation', async () => {
+  const value=state(),sample=value.sessions.find(item=>item.status==='approved');
+  for(let i=0;i<30;i++)value.sessions.push({...sample,id:'catalog-'+i});
+  value.reservations.push({id:'own',studentId:student.sub,sessionId:'catalog-29',status:'confirmed'});
+  const context=await new AcademicService({read:async()=>value}).aiContext(student,'student');
+  assert.equal(context.sessions.length,25);
+  assert.equal(context.sessions[0].id,'catalog-29');
+  assert.equal(context.truncated.sessions,true);
+  assert.ok(context.totals.sessions>25);
+});
 test('client time and code lifetime overrides are ignored', context => {
   const value = state();
   const session = value.sessions.find(item => item.id === 'session-1');

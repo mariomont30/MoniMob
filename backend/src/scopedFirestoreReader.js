@@ -1,3 +1,4 @@
+import { materialOwner } from './domain/materialAccess.js';
 import { FieldPath } from 'firebase-admin/firestore';
 import { emptyState, failure } from './academicService.js';
 
@@ -30,8 +31,14 @@ export async function readScopedState(db, tx, identity, role) {
   const user = profile.exists ? row(profile) : null;
   if (!user || user.disabled || !identity.roles.includes(role) || !user.roles?.includes(role)) throw failure('FORBIDDEN', 'Perfil não autorizado.', 403);
   if (settings.exists) state.settings = { ...state.settings, ...settings.data() };
+  // A tutor must be able to address an actual professor before that professor
+  // has selected a course. The response projection exposes names/IDs, not email.
+  const registeredProfessors = role === 'monitor'
+    ? (await tx.get(db.collection('users').where('roles', 'array-contains', 'professor').limit(2001))).docs.map(row).filter(item => !item.disabled)
+    : [];
+  if (registeredProfessors.length > 2000) throw failure('PILOT_LIMIT', 'O diretório de professores precisa ser paginado.', 503);
   [state.disciplines, state.monitorDisciplines, state.professorDisciplines, state.favorites, state.notifications] = await Promise.all([
-    user.disciplineIds ? byId('disciplines', user.disciplineIds) : (async () => {
+    role === 'student' && user.disciplineIds ? byId('disciplines', user.disciplineIds) : (async () => {
       const s = await tx.get(db.collection('disciplines').limit(2001));
       if (s.size > 2000) throw failure('PILOT_LIMIT', 'O catálogo precisa ser paginado.', 503);
       return s.docs.map(row);
@@ -42,34 +49,44 @@ export async function readScopedState(db, tx, identity, role) {
   const active = state.disciplines.filter(d => d.active !== false).map(d => d.id);
   const supervised = state.professorDisciplines.filter(validLink).map(link => link.disciplineId);
   const monitorCourses = state.monitorDisciplines.filter(validLink).map(link => link.disciplineId);
+  state.linkRequests = role === 'monitor' ? await query('linkRequests','monitorId',[user.id]) : role === 'professor' ? await query('linkRequests','professorId',[user.id]) : [];
+  state.academicEvents = role === 'professor' ? merge(
+    await query('academicEvents','disciplineId',supervised),
+    await query('academicEvents','entityId',state.linkRequests.filter(item=>!supervised.includes(item.disciplineId)).map(item=>item.id))
+  ) : [];
+  if(role === 'monitor') state.professorDisciplines = await query('professorDisciplines','disciplineId',active);
   const ownReservations = role === 'student' ? await query('reservations', 'studentId', [user.id]) : [];
   const sessionField = role === 'monitor' ? 'monitorId' : 'disciplineId';
   const scope = role === 'monitor' ? (monitorCourses.length ? [user.id] : []) : role === 'professor' ? supervised : active;
   [state.sessions, state.materials] = await Promise.all([query('sessions', sessionField, scope), query('materials', sessionField, scope)]);
   if (role === 'student') {
-    state.sessions = merge(state.sessions.filter(x => x.status === 'approved' && !x.archived), await byId('sessions', ownReservations.map(x => x.sessionId)));
+    state.sessions = merge(state.sessions.filter(x => x.status === 'approved' && !x.archived), await byId('sessions', [...ownReservations.map(x => x.sessionId), ...state.favorites.map(x => x.sessionId)]));
     state.materials = state.materials.filter(x => x.status === 'approved' && !x.archived);
   } else if (role === 'monitor') {
     state.sessions = state.sessions.filter(x => monitorCourses.includes(x.disciplineId));
-    state.materials = state.materials.filter(x => monitorCourses.includes(x.disciplineId));
+    state.materials = await query('materials','ownerId',[user.id]).then(owned=>merge(owned,state.materials));
+    state.materials = merge(state.materials,await query('materials','monitorId',[user.id]),await query('materials','disciplineId',monitorCourses));
   }
+  if(role === 'student') state.monitorDisciplines = merge(state.monitorDisciplines, await query('monitorDisciplines','monitorId',state.sessions.map(x=>x.monitorId)));
   const sessions = state.sessions.map(x => x.id);
   [state.reservations, state.attendance, state.waitlist, state.approvals] = await Promise.all([
     query('reservations', 'sessionId', sessions),
     query('attendance', role === 'student' ? 'studentId' : 'sessionId', role === 'student' ? [user.id] : sessions),
     query('waitlist', role === 'student' ? 'studentId' : 'sessionId', role === 'student' ? [user.id] : sessions),
     role === 'professor' ? query('approvals', 'professorId', [user.id])
-      : role === 'monitor' ? query('approvals', 'entityId', [...sessions, ...state.materials.map(x => x.id)]) : []
+      : role === 'monitor' ? query('approvals', 'entityId', [...sessions, ...state.materials.filter(x => materialOwner(x) === user.id).map(x => x.id)]) : []
   ]);
   state.reservations = merge(state.reservations, ownReservations);
   if (role === 'professor') state.monitorDisciplines = await query('monitorDisciplines', 'disciplineId', supervised);
   const disciplineIds = [...state.sessions, ...state.materials, ...state.monitorDisciplines, ...state.professorDisciplines].map(x => x.disciplineId);
   const loaded = new Set(state.disciplines.map(x => x.id));
   state.disciplines = merge(state.disciplines, await byId('disciplines', ids(disciplineIds).filter(id => !loaded.has(id))));
-  const users = [user.id, ...state.sessions.flatMap(x => [x.monitorId, x.professorId]), ...state.materials.flatMap(x => [x.monitorId, x.professorId])];
+  const users = [user.id, ...state.sessions.flatMap(x => [x.monitorId, x.professorId]), ...state.materials.flatMap(x => [x.ownerId, x.monitorId, x.professorId])];
   if (role !== 'student') users.push(...state.reservations.map(x => x.studentId));
   if (role === 'professor') users.push(...state.monitorDisciplines.filter(validLink).map(x => x.monitorId));
-  state.users = merge(await byId('users', ids(users).filter(id => id !== user.id)), [user]);
+  users.push(...state.linkRequests.flatMap(x=>[x.monitorId,x.professorId]),...state.academicEvents.map(x=>x.actorId));
+  if(role==='monitor') users.push(...state.professorDisciplines.filter(validLink).map(x=>x.professorId));
+  state.users = merge(await byId('users', ids(users).filter(id => id !== user.id)), registeredProfessors, [user]);
   // Audit history and attendance codes are neither queried nor returned here.
   return state;
 }

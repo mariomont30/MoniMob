@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+const fresh={uid:'owned',email:'test@edu.unifor.br',getIdToken:async force=>{assert.equal(force,true);return 'fresh-proof';}};
+const old={...fresh,getIdToken:async()=>{throw Error('stale captured User must not be used');}};
+globalThis.__firebaseAuth={currentUser:old};let calls=[],wrong=false;
+globalThis.__firebaseMocks={credential:(email,password)=>({email,password}),reauthenticateWithCredential:async(account,cred)=>{if(wrong)throw Object.assign(Error('wrong'),{code:'auth/wrong-password'});return{user:fresh};},signOut:async()=>{globalThis.__firebaseAuth.currentUser=null;}};
+globalThis.__registrationApi=async(...args)=>{calls.push(args);return{deleted:true};};
+const {FirebaseAuthRepository}=await import(new URL('../src/infrastructure/firebaseAuthRepository.js',import.meta.url));const auth=new FirebaseAuthRepository();
+await assert.rejects(auth.deleteAccount('owned'),e=>e.code==='PASSWORD_VERIFICATION_REQUIRED');wrong=true;await assert.rejects(auth.verifyDeletionPassword('owned','wrong'),e=>e.code==='auth/wrong-password');assert.equal(calls.length,0);wrong=false;
+await auth.verifyDeletionPassword('owned','correct');assert.equal(auth.deletionVerification.token,'fresh-proof');await auth.deleteAccount('owned');assert.deepEqual(calls,[['/api/account/delete',{method:'POST',token:'fresh-proof',body:{confirmation:'DELETE'}}]]);assert.equal(auth.deletionVerification,null);
+globalThis.__firebaseAuth.currentUser=old;await auth.verifyDeletionPassword('owned','correct');auth.deletionVerification.expiresAt=0;await assert.rejects(auth.deleteAccount('owned'),e=>e.code==='PASSWORD_VERIFICATION_REQUIRED');assert.equal(calls.length,1);
+console.log('PASS: returned reauthentication User supplies fresh proof, wrong password never deletes, expiry checked and password never sent to backend.');

@@ -93,8 +93,8 @@ android {
         applicationId 'br.edu.unifor.monimob'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode = (project.findProperty('monimobVersionCode') ?: '1').toString().toInteger()
-        versionName = (project.findProperty('monimobVersionName') ?: '1.0.0').toString()
+        versionCode = (project.findProperty('monimobVersionCode') ?: '22').toString().toInteger()
+        versionName = (project.findProperty('monimobVersionName') ?: '1.7.4-private').toString()
 
         // Hash long generated C++ object paths before Ninja reaches Windows limits.
         externalNativeBuild {
