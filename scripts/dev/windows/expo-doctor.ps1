@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../../..')).Path
 $tempPath = Join-Path $projectRoot '.tmp'
 $expoHome = Join-Path $projectRoot '.expo-home'
 $npmCache = Join-Path $projectRoot '.npm-cache'

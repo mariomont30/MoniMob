@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { loadConfig, saveMobileEnv, root, backend, mobile } from './local-config.mjs';
 import { ensureDependencies } from './dependencies.mjs';
-import { publishConnection } from './publish-connection.mjs';
+import { publishConnection } from '../firebase/publish-connection.mjs';
 import { ensureTunnelTool } from './tunnel-tool.mjs';
 const { backendEnv, mobileEnv, projectId } = loadConfig();
 const port = Number(backendEnv.PORT || 8787);

@@ -57,5 +57,5 @@ bytes.write('data', 36);
 bytes.writeUInt32LE(count * 2, 40);
 for (let index = 0; index < count; index++)
   bytes.writeInt16LE(Math.round((samples[index] / peak) * 0.82 * 32767), 44 + index * 2);
-fs.writeFileSync(new URL('../mobile-expo/assets/welcome-chime.wav', import.meta.url), bytes);
+fs.writeFileSync(new URL('../../mobile-expo/assets/welcome-chime.wav', import.meta.url), bytes);
 console.log(`Original MoniMob opening sound generated: ${seconds}s, PCM 48 kHz.`);

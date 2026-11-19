@@ -34,7 +34,7 @@
         "credentials/**"
       ],
       "predeploy": [
-        "node scripts/sync-domain.mjs"
+        "node scripts/maintenance/sync-domain.mjs"
       ]
     }
   ]

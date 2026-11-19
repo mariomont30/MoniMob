@@ -1,12 +1,12 @@
 # MoniMob
 
-![MoniMob: academic tutoring, closer to you](docs/assets/monimob-capa.png)
+![MoniMob: academic tutoring, closer to you](docs/assets/brand/monimob-capa.png)
 
 [![CI](https://github.com/mariomont30/MoniMob/actions/workflows/ci.yml/badge.svg)](https://github.com/mariomont30/MoniMob/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/badge/release-1.7.4-004AF7)](https://github.com/mariomont30/MoniMob/releases/tag/v1.7.4)
 [![License](https://img.shields.io/badge/license-MIT-087D73)](LICENSE)
 
-[Português](README.md) ·
+[Português](README.md) · [Documentation index](docs/README.md) ·
 [Download Android APK](https://github.com/mariomont30/MoniMob/releases/download/v1.7.4/MoniMob-Android.apk)
 
 ## Description

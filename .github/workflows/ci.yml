@@ -63,7 +63,7 @@ jobs:
         run: >
           ./tests/firestore/node_modules/.bin/firebase emulators:exec
           --project demo-monimob --only firestore,auth
-          "node scripts/run-emulator-tests.mjs"
+          "node scripts/quality/run-emulator-tests.mjs"
 
   release:
     name: Verificar e publicar APK preparado
