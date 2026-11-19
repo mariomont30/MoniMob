@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
-export const root = fileURLToPath(new URL('../', import.meta.url));
+export const root = fileURLToPath(new URL('../../', import.meta.url));
 export const backend = path.join(root, 'backend');
 export const mobile = path.join(root, 'mobile-expo');
 export function loadConfig() {

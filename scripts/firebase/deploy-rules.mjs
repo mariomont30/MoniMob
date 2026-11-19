@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { loadConfig, root, backend } from './local-config.mjs';
+import { loadConfig, root, backend } from '../dev/local-config.mjs';
 const { backendEnv, projectId } = loadConfig();
 const r = createRequire(path.join(backend, 'package.json'));
 const { initializeApp, cert, deleteApp } = r('firebase-admin/app');

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dependencyLockMismatches } from '../dependencies.mjs';
+import { dependencyLockMismatches } from '../dev/dependencies.mjs';
 
 test('startup detects installed versions and integrity that differ from the delivered lock', () => {
   const expected = { packages: { 'node_modules/firebase': {version:'13.3.0',integrity:'new'}, 'node_modules/platform-only':{version:'1.0.0',optional:true} } };

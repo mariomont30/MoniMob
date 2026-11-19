@@ -39,7 +39,7 @@ export async function ensureDependencies({ includeMobile = true } = {}) {
   console.log('Preparando a instalação automaticamente. Aguarde antes de executar outro comando de instalação.');
   if (!process.env.npm_execpath) throw new Error('Execute npm.cmd run iniciar na raiz do MoniMob.');
   await new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [path.join(root, 'scripts/install-local.mjs'), ...folders.map(folder => '--only=' + folder)], { cwd: root, env: process.env, stdio: 'inherit', windowsHide: true });
+    const child = spawn(process.execPath, [path.join(root, 'scripts/dev/install-local.mjs'), ...folders.map(folder => '--only=' + folder)], { cwd: root, env: process.env, stdio: 'inherit', windowsHide: true });
     child.on('error', reject);
     child.on('exit', code => code === 0 ? resolve() : reject(new Error('A instalação automática não terminou. Confira o erro do npm acima; o servidor não foi iniciado.')));
   });

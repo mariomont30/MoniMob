@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../../..')).Path
 $tempPath = Join-Path $projectRoot '.tmp'
 $expoHome = Join-Path $projectRoot '.expo-home'
 $npmCache = Join-Path $projectRoot '.npm-cache'
@@ -11,4 +11,4 @@ $env:__UNSAFE_EXPO_HOME_DIRECTORY = $expoHome
 $env:npm_config_cache = $npmCache
 
 Set-Location (Join-Path $projectRoot 'mobile-expo')
-node (Join-Path $PSScriptRoot 'start-mobile.mjs') @args
+node (Join-Path $PSScriptRoot '../start-mobile.mjs') @args

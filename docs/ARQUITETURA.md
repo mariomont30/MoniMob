@@ -12,7 +12,7 @@ permissões e regras das operações.
 | Servidor           | `backend/src/`               | API, autorização e operações acadêmicas |
 | Segurança de dados | `firestore.rules`            | Regras de acesso ao Firestore           |
 | Verificação        | `tests/` e testes do backend | Regressões e integrações                |
-| Operação local     | `scripts/`                   | Instalação, diagnóstico e inicialização |
+| Operação local     | `scripts/dev/`               | Instalação, diagnóstico e inicialização |
 | Modelagem          | `docs/diagrams/`             | Casos de uso em PlantUML                |
 
 As implementações de regras compartilhadas devem permanecer coerentes entre
@@ -64,7 +64,7 @@ As integrações devem usar emuladores, sem credenciais reais:
 ```powershell
 npm.cmd ci --prefix tests/firestore
 $env:GCLOUD_PROJECT = "demo-monimob"
-.\tests\firestore\node_modules\.bin\firebase.cmd emulators:exec --project demo-monimob --only firestore,auth "node scripts/run-emulator-tests.mjs"
+.\tests\firestore\node_modules\.bin\firebase.cmd emulators:exec --project demo-monimob --only firestore,auth "node scripts/quality/run-emulator-tests.mjs"
 ```
 
 É necessário Java compatível com o Firebase CLI para os emuladores. No CI são

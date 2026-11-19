@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 
 function files(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap(item => {

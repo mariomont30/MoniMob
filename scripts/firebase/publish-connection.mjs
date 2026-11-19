@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { backend } from './local-config.mjs';
+import { backend } from '../dev/local-config.mjs';
 
 export async function publishConnection({ apiUrl, projectId, credentialPath }) {
   const url = new URL(apiUrl);

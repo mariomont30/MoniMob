@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST || process.env.GCLOUD_PROJECT !== 'demo-monimob') {
   throw new Error('Run this suite inside Firebase Auth/Firestore emulators with GCLOUD_PROJECT=demo-monimob.');
 }
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const suites = [
   'tests/firestore/rules.test.mjs',
   ...['firebase.e2e', 'catalogFlow.integration', 'firestore.integration', 'materialFiles.integration', 'libraryFlow.integration', 'reviewFlow.integration', 'accountDeletion.integration', 'load.integration'].map(name => 'backend/tests/' + name + '.test.js'),
