@@ -60,7 +60,12 @@ search pipeline over attachments.
 - Expo File System, Sharing, Audio and native date/time selection.
 - PlantUML source and rendered use cases, plus GitHub Actions checks.
 
-[![Use cases](docs/diagrams/use-cases.svg)](docs/diagrams/use-cases.svg)
+<details>
+<summary>Explore the complete use-case diagram</summary>
+
+[![Use cases](docs/diagrams/use-cases.png)](docs/diagrams/use-cases.svg)
+
+</details>
 
 [Editable PlantUML source](docs/diagrams/use-cases.puml) ·
 [Technical guide](docs/ARQUITETURA.md)

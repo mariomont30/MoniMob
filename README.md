@@ -110,7 +110,12 @@ professor.
 
 ## Casos de uso
 
-[![Diagrama de casos de uso do MoniMob](docs/diagrams/use-cases.svg)](docs/diagrams/use-cases.svg)
+<details>
+<summary>Explorar o diagrama completo de casos de uso</summary>
+
+[![Diagrama de casos de uso do MoniMob](docs/diagrams/use-cases.png)](docs/diagrams/use-cases.svg)
+
+</details>
 
 [Abrir imagem](docs/diagrams/use-cases.svg) ·
 [Editar a fonte PlantUML](docs/diagrams/use-cases.puml)
