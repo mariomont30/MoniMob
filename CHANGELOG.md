@@ -14,6 +14,8 @@ Distribuição acadêmica atualizada e preparação do repositório público.
 - Capa, QR Code, download do APK e arquivo de verificação SHA-256.
 - Verificação de conteúdo público e execução de testes no GitHub Actions.
 - Preparação do utilitário de túnel com verificação de integridade.
+- Atualização do Firestore e correção específica do matcher de arquivos do
+  Expo, com verificação de dependências na CI e teste de compatibilidade.
 
 O APK acadêmico identifica a versão nativa como `1.7.4-private`, código 22. O
 código público não inclui os segredos da distribuição privada.

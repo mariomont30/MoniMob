@@ -30,6 +30,10 @@ jobs:
       - run: node scripts/check-public.mjs
       - run: npm ci --prefix backend --no-fund --no-audit
       - run: npm ci --prefix mobile-expo --no-fund --no-audit
+      - name: Verificar dependências do backend
+        run: npm audit --prefix backend --audit-level=low
+      - name: Verificar dependências do aplicativo e das ferramentas
+        run: npm audit --prefix mobile-expo --audit-level=low
       - run: npm test
 
   firebase:
