@@ -29,8 +29,13 @@ const repo = path.join(root, 'repo');
 const privateDir = path.join(root, 'private');
 const output = path.join(root, 'publication');
 const workspaceWork = path.dirname(root);
-const env = { ...process.env, TEMP: path.join(root,'tmp'), TMP: path.join(root,'tmp'), npm_config_cache: path.join(root,'npm-cache'), GEMINI_API_KEY: '', GOOGLE_APPLICATION_CREDENTIALS: '' };
+const env = { ...process.env, GIT_PAGER: '', PAGER: '', GH_PAGER: '', TERM: 'dumb', NO_COLOR: '1', TEMP: path.join(root,'tmp'), TMP: path.join(root,'tmp'), npm_config_cache: path.join(root,'npm-cache'), GEMINI_API_KEY: '', GOOGLE_APPLICATION_CREDENTIALS: '' };
 let needles = [];
+const progressFile = path.join(output, 'progresso-publicacao.txt');
+function progress(message) {
+  console.log(message);
+  try { fs.appendFileSync(progressFile, new Date().toISOString()+' '+message+'\n'); } catch {}
+}
 const sha = buffer => crypto.createHash('sha256').update(buffer).digest('hex');
 function check(ok, message) { if (!ok) throw new Error(message); }
 function inside(base, target) {
@@ -38,7 +43,9 @@ function inside(base, target) {
   return relative !== '..' && !relative.startsWith('..'+path.sep) && !path.isAbsolute(relative);
 }
 function command(exe, args, { cwd = repo, capture = false, allowedFailure = false } = {}) {
+  if (!capture) progress('INÍCIO: '+path.basename(exe));
   const r = cp.spawnSync(exe, args, {cwd,env,encoding: capture ? 'utf8' : undefined,stdio: capture ? ['ignore','pipe','pipe'] : 'inherit',windowsHide:true,maxBuffer:64*1024*1024});
+  if (!capture) progress('FIM: '+path.basename(exe)+'; código '+r.status);
   if (r.error) throw new Error('Não foi possível iniciar '+path.basename(exe)+': '+r.error.message);
   if (r.status !== 0 && !allowedFailure) throw new Error(path.basename(exe)+' retornou código '+r.status+'. A publicação foi interrompida.');
   return capture ? (r.stdout || '') : r.status;
@@ -47,7 +54,7 @@ const git = fs.existsSync(path.join(path.parse(root).root,'Program Files','Git',
   path.join(path.parse(root).root,'Program Files','Git','cmd','git.exe') : 'git';
 const gh = process.platform === 'win32' ? path.join(process.env.ProgramFiles || 'C:/Program Files','GitHub CLI','gh.exe') : 'gh';
 const npmCli = path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js');
-function g(args, opts={}) { return command(git, args, opts); }
+function g(args, opts={}) { return command(git, ['--no-pager', ...args], opts); }
 function h(args, opts={}) { return command(gh, args, opts); }
 function write(relative, data) {
   const target = path.resolve(repo,relative);
@@ -158,7 +165,7 @@ function linksOkay(names) {
   check(g(['remote','get-url','origin'],{capture:true}).trim().replace(/\.git$/,'')==='https://github.com/'+ownerRepo,'O checkout não aponta para o repositório esperado.');
   check(g(['rev-parse','HEAD'],{capture:true}).trim()===expectedBase || g(['branch','--show-current'],{capture:true}).trim()===branch,'O checkout mudou. É necessária nova revisão antes de publicar.');
 
-  console.log('1/7 Revisando a configuração privada sem mostrar valores...');
+  progress('1/7 Revisando a configuração privada sem mostrar valores...');
   for(const p of walk(privateDir,p=>/\.json$/i.test(p))){
     try{const j=JSON.parse(fs.readFileSync(p,'utf8'));if(j.type==='service_account'){remember(j.private_key);remember(j.private_key_id);remember(j.client_email);}}catch(e){if(e.message.startsWith('Possível'))throw e;}
   }
@@ -170,7 +177,7 @@ function linksOkay(names) {
   }
   check(needles.length>=4,'Não foi possível carregar as referências privadas para a revisão. Publicação interrompida.');
 
-  console.log('2/7 Concluindo a documentação e os testes do GitHub...');
+  progress('2/7 Concluindo a documentação e os testes do GitHub...');
   for(const [name,data] of Object.entries(files))write(name,data);
   const ignore=path.join(repo,'.gitignore');
   for(const line of ['tools/*.download','tmp/'])if(!fs.readFileSync(ignore,'utf8').split(/\r?\n/).includes(line))fs.appendFileSync(ignore,'\n'+line+'\n');
@@ -200,7 +207,7 @@ function linksOkay(names) {
   }
   linksOkay(docs);
 
-  console.log('3/7 Verificando código e executando os testes locais...');
+  progress('3/7 Verificando código e executando os testes locais...');
   scanPublic(publicList());
   const packageJson=JSON.parse(fs.readFileSync(path.join(repo,'package.json'),'utf8'));
   for(const name of ['iniciar','instalar','diagnostico','firebase:regras'])check(packageJson.scripts?.[name],'Comando documentado ausente: '+name);
@@ -217,7 +224,7 @@ function linksOkay(names) {
     check(v.critical===0 && v.high===0,'Dependências de produção precisam de revisão antes da publicação: '+folder);
   }
 
-  console.log('4/7 Verificando APK, assinatura e QR Code...');
+  progress('4/7 Verificando APK, assinatura e QR Code...');
   const apk=path.join(privateDir,'apk','MoniMob-Privado-1.7.4.apk');
   check(sha(fs.readFileSync(apk))===expectedApk,'O APK difere da versão previamente analisada.');
   await scanApk(apk);
@@ -231,7 +238,7 @@ function linksOkay(names) {
   check(qr&&qr.data==='https://github.com/'+ownerRepo+'/releases/download/v1.7.4/MoniMob-Android.apk','O QR Code não aponta para o APK esperado.');
   fs.copyFileSync(path.join(repo,'docs/releases/SHA256SUMS-1.7.4.txt'),path.join(output,'SHA256SUMS.txt'));
 
-  console.log('5/7 Preparando commit público em uma branch separada...');
+  progress('5/7 Preparando commit público em uma branch separada...');
   g(['fetch','origin','main']);
   check(g(['rev-parse','origin/main'],{capture:true}).trim()===expectedBase,'A branch main foi alterada. Precisa de nova revisão antes de prosseguir.');
   const current=g(['branch','--show-current'],{capture:true}).trim();
@@ -247,7 +254,7 @@ function linksOkay(names) {
   const helper='!"'+gh.replaceAll('\\','/')+'" auth git-credential';
   g(['-c','credential.helper=','-c','credential.helper='+helper,'push','origin','HEAD:refs/heads/'+branch]);
 
-  console.log('6/7 Preparando release em rascunho, sem publicar o ZIP privado...');
+  progress('6/7 Preparando release em rascunho, sem publicar o ZIP privado...');
   const notes=[
     '# MoniMob 1.7.4',
     '',
@@ -279,6 +286,6 @@ function linksOkay(names) {
   h(['repo','edit',ownerRepo,'--description','MoniMob | Monitoria acadêmica com React Native, Expo, Firebase e Gemini. Professor, Monitor e Aluno.','--add-topic','react-native','--add-topic','expo','--add-topic','firebase','--add-topic','firestore','--add-topic','gemini','--add-topic','android','--add-topic','education','--add-topic','portfolio','--add-topic','plantuml'],{allowedFailure:true});
   h(['api','--method','PUT','repos/'+ownerRepo+'/private-vulnerability-reporting'],{allowedFailure:true});
   h(['api','--method','PUT','repos/'+ownerRepo+'/vulnerability-alerts'],{allowedFailure:true});
-  console.log('7/7 Preparação concluída. A branch e o PR estão disponíveis para revisão; main ainda não foi alterada.');
+  progress('7/7 Preparação concluída. A branch e o PR estão disponíveis para revisão; main ainda não foi alterada.');
   console.log('Volte ao chat e informe: preparação do GitHub concluída.');
-})().catch(error=>{console.error('\nINTERROMPIDO: '+error.message);console.error('O ZIP privado não foi enviado. Informe esta mensagem no chat.');process.exitCode=1;});
+})().catch(error=>{console.error('\nINTERROMPIDO: '+error.message);try { fs.appendFileSync(progressFile, '\nINTERROMPIDO: '+error.message+'\n'); } catch {}console.error('O ZIP privado não foi enviado. Informe esta mensagem no chat.');process.exitCode=1;});
