@@ -86,6 +86,18 @@ function publicList() {
   return [...new Set(g(['ls-files','-z','--cached','--others','--exclude-standard'],{capture:true}).split('\0').filter(Boolean))]
     .filter(p=>fs.existsSync(path.join(repo,p)));
 }
+function containsPrivateKeyMaterial(text) {
+  // A PEM header alone is also used by privacy tests. Detect encoded key
+  // material after it, while scanKnown still checks actual private credentials.
+  const normalized = text.replace(/\\+r\\+n|\\+n|\\+r/g, '\n');
+  const header = /-----BEGIN (?:(?:RSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY-----/g;
+  for (const match of normalized.matchAll(header)) {
+    const tail = normalized.slice(match.index + match[0].length).trimStart();
+    const body = tail.match(/^[A-Za-z0-9+/=\r\n \t]+/);
+    if (body && body[0].replace(/\s/g, '').length >= 80) return true;
+  }
+  return false;
+}
 function scanPublic(list) {
   for (const name of list) {
     check(!forbidden(name),'Arquivo não permitido na versão pública: '+name);
@@ -94,7 +106,7 @@ function scanPublic(list) {
     const b=fs.readFileSync(p);
     scanKnown(b,name);
     const text=b.toString('utf8');
-    check(!/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text),'Chave privada em '+name);
+    check(!containsPrivateKeyMaterial(text),'Material de chave privada em '+name);
     check(!/AIza[0-9A-Za-z_-]{30,}/.test(text),'Configuração Firebase real em '+name);
     check(!/(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,})/.test(text),'Token em '+name);
   }
