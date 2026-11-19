@@ -11,6 +11,12 @@ test('database quota exhaustion gives a useful message without blaming the inter
 test('temporary assistant failure explains recovery without exposing provider details',()=>{
   assert.equal(userErrorMessage({code:'AI_TEMPORARILY_UNAVAILABLE',message:'private provider response'}),'O MoniBot está temporariamente ocupado. Sua pergunta foi mantida. Tente novamente em instantes.');
 });
+
+test('daily AI quota preserves the question and asks to wait for renewal',()=>{
+  const message=userErrorMessage({code:'AI_QUOTA_EXCEEDED',message:'private quota dimensions and project details'});
+  assert.match(message,/limite diário.*pergunta foi mantida.*renovação/i);
+  assert.doesNotMatch(message,/instantes|private|project/i);
+});
 test('offline fetch errors give a recovery instruction instead of a native error',()=>{
   assert.match(normalizeApiError(new TypeError('Network request failed')).message,/internet.*tente novamente/i);
   assert.match(normalizeApiError(new TypeError('Failed to fetch')).message,/conectar/);

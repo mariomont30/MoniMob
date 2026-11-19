@@ -5,6 +5,20 @@ import { GeminiClient, AiUnavailableError } from '../src/geminiClient.js';
 const success = (text = 'Recovered') => ({ ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text }] } }] }) });
 const immediate = { sleep: async () => {}, random: () => 0 };
 
+test('default live policy uses Flash-Lite with minimal thinking and bounded concise output', async () => {
+  let request;
+  const client = new GeminiClient({ apiKey: 'test', fetchImpl: async (url, options) => {
+    request = { url, body: JSON.parse(options.body) }; return success();
+  } });
+  assert.equal(await client.generate({ role: 'monitor', message: 'Como corrigir meu material?' }), 'Recovered');
+  assert.match(request.url, /gemini-3\.5-flash-lite:generateContent$/);
+  assert.equal(request.body.generationConfig.thinkingConfig.thinkingLevel, 'minimal');
+  assert.equal(request.body.generationConfig.maxOutputTokens, 512);
+  assert.equal(client.maxAttempts, 2);
+  assert.equal(client.attemptTimeoutMs, 9000);
+  assert.equal(client.totalTimeoutMs, 20000);
+});
+
 test('Gemini usa chave somente no cabeçalho do backend e limita a geração', async () => {
   let request;
   const client = new GeminiClient({ apiKey: 'chave-apenas-de-teste', model: 'gemini-test', fetchImpl: async (url, options) => {
@@ -18,7 +32,7 @@ test('Gemini usa chave somente no cabeçalho do backend e limita a geração', a
   assert.doesNotMatch(request.options.body, /chave-apenas-de-teste/);
   const body = JSON.parse(request.options.body);
   assert.equal(body.generationConfig.temperature, 0.2);
-  assert.equal(body.generationConfig.maxOutputTokens, 1024);
+  assert.equal(body.generationConfig.maxOutputTokens, 512);
 });
 
 test('Gemini trata resposta HTTP e conteúdo vazio como falha', async () => {
@@ -65,7 +79,7 @@ test('the timeout also bounds a response whose headers arrive but JSON body stal
 
 test('503 then 502 recover on a bounded third attempt with exponential backoff and jitter', async () => {
   let calls = 0, clock = 0; const delays = [];
-  const client = new GeminiClient({ apiKey: 'test', now: () => clock, random: () => 0.5,
+  const client = new GeminiClient({ apiKey: 'test', maxAttempts: 3, now: () => clock, random: () => 0.5,
     sleep: async delay => { delays.push(delay); clock += delay; },
     fetchImpl: async () => ++calls < 3 ? { ok: false, status: calls === 1 ? 503 : 502 } : success() });
   assert.equal(await client.generate({ role: 'student', message: 'Hello', context: {} }), 'Recovered');
@@ -98,7 +112,7 @@ test('an exhausted outage is a controlled 503 with no fabricated answer or unbou
   let calls = 0;
   const client = new GeminiClient({ apiKey: 'test', ...immediate, fetchImpl: async () => { calls++; return { ok: false, status: 503 }; } });
   await assert.rejects(() => client.generate({ role: 'student', message: 'Hello', context: {} }), error => error.status === 503 && error.code === 'AI_TEMPORARILY_UNAVAILABLE');
-  assert.equal(calls, 3);
+  assert.equal(calls, 2);
 });
 
 test('overall timeout terminates an unresponsive provider even when it ignores AbortSignal', async () => {
@@ -115,7 +129,7 @@ test('provider thought content is never shown as the assistant answer', async ()
 });
 
 test('integração real com Gemini é opcional e só roda com GEMINI_API_KEY', { skip: !process.env.GEMINI_API_KEY }, async () => {
-  const client = new GeminiClient({ apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL || 'gemini-3.6-flash' });
+  const client = new GeminiClient({ apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite' });
   const answer = await client.generate({ role: 'student', message: 'Responda apenas: OK', context: { screen: 'test' } });
   assert.ok(answer.length > 0);
 });
@@ -139,5 +153,41 @@ test('Gemini mantém o histórico em turnos user/model e aplica configuração c
   assert.equal(body.contents[2].parts[0].text, 'E amanhã?');
   assert.equal(body.generationConfig.temperature, undefined);
   assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, 'low');
-  assert.match(body.systemInstruction.parts[0].text, /Contexto acadêmico permitido/);
+  assert.match(body.systemInstruction.parts[0].text, /Permitted academic context/);
+});
+
+test('Flash 3.5 uses supported minimal thinking while Flash 3.8 retains its supported low level', async () => {
+  for (const [model, level] of [['gemini-3.5-flash', 'minimal'], ['gemini-3.8-flash', 'low']]) {
+    let config;
+    const client = new GeminiClient({ apiKey: 'test', model, fetchImpl: async (_, options) => { config = JSON.parse(options.body).generationConfig; return success(); } });
+    await client.generate({ role: 'student', message: 'Qual é o nome do aplicativo?', context: {} });
+    assert.equal(config.thinkingConfig.thinkingLevel, level);
+  }
+});
+
+test('daily provider quota uses RPC RetryInfo, stops retries, and protects later users until expiry', async () => {
+  let calls=0, clock=0;
+  const client=new GeminiClient({apiKey:'test',now:()=>clock,...immediate,fetchImpl:async()=>{
+    calls++;
+    return calls===1 ? {ok:false,status:429,json:async()=>({error:{details:[
+      {'@type':'type.googleapis.com/google.rpc.QuotaFailure',violations:[{quotaId:'GenerateRequestsPerDayPerProjectPerModel-FreeTier'}]},
+      {'@type':'type.googleapis.com/google.rpc.RetryInfo',retryDelay:'120.5s'}
+    ]}})} : success('Recovered after quota reset');
+  }});
+  const input={role:'student',message:'Hello',context:{}};
+  await assert.rejects(client.generate(input),e=>e.code==='AI_QUOTA_EXCEEDED' && e.retryAfterSeconds===121);
+  await assert.rejects(client.generate({...input,role:'professor'}),e=>e.code==='AI_QUOTA_EXCEEDED');
+  assert.equal(calls,1);
+  clock=120501;
+  assert.equal(await client.generate(input),'Recovered after quota reset');
+  assert.equal(calls,2);
+});
+
+test('minute quotas respect RPC delay without being mislabeled as a daily quota', async () => {
+  let calls=0;
+  const client=new GeminiClient({apiKey:'test',totalTimeoutMs:50,...immediate,fetchImpl:async()=>{
+    calls++;return {ok:false,status:429,json:async()=>({error:{details:[{'@type':'type.googleapis.com/google.rpc.RetryInfo',retryDelay:'60s'}]}})};
+  }});
+  await assert.rejects(client.generate({role:'student',message:'Hello',context:{}}),e=>e.code==='AI_TEMPORARILY_UNAVAILABLE' && e.retryAfterSeconds===60);
+  assert.equal(calls,1);
 });

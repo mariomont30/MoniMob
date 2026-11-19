@@ -5,3 +5,11 @@ export function resolveApiOrigin(configuredUrl, hostUri, development) {
   if (parsed.hostname.endsWith('.exp.direct') || parsed.hostname.includes('.ngrok')) return 'https://' + parsed.hostname;
   return parsed.origin;
 }
+
+// Expo Go uses its current launcher; APK uses Firebase discovery. Old manually
+// saved addresses deliberately have no influence on either environment.
+export function selectApiOrigin({ configuredUrl, hostUri, development, metroProxy = false }) {
+  if (!development) return '';
+  if (metroProxy && hostUri) return resolveApiOrigin('', hostUri, true);
+  return resolveApiOrigin(configuredUrl, hostUri, true);
+}

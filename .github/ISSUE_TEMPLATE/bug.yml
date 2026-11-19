@@ -1,0 +1,25 @@
+name: Relatar problema
+description: Informe um comportamento incorreto do MoniMob
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Não inclua senhas, tokens, dados pessoais ou arquivos privados."
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      description: Explique o perfil utilizado e a sequência de ações.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado e observado
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Ambiente
+      description: "Versão do app, Android e Expo Go ou APK."

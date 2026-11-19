@@ -96,10 +96,10 @@ test('código expirado não registra presença', () => {
   expectCode('EXPIRED_CODE', () => service.registerAttendance({ studentId: 'student-1', sessionId: 'session-1', code: code.code, now: createdAt + 6 * 60_000 }));
 });
 
-test('monitor só cria sessão em disciplina vinculada e item nasce pendente', () => {
+test('monitor publica sessão válida imediatamente em disciplina vinculada', () => {
   const { service } = setup();
-  const saved = service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T390', topic: 'Pilhas', date: '2030-05-10', time: '18:00', capacity: 12 } });
-  assert.equal(saved.status, 'pending');
+  const saved = service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T390', topic: 'Pilhas', location: 'Sala 10', date: '2031-05-10', time: '18:00', capacity: 12 } });
+  assert.equal(saved.status, 'approved');
   assert.equal(saved.professorId, 'professor-1');
   expectCode('FORBIDDEN', () => service.saveSession({ actorId: 'monitor-1', session: { disciplineId: 'T197', topic: 'Expo', date: '2030-05-10', time: '18:00' } }));
 });
@@ -109,7 +109,7 @@ test('CRUD de sessão permite atualização própria e arquivamento lógico', ()
   const original = repository.read().sessions.find(item => item.id === 'session-1');
   const updated = service.saveSession({ actorId: 'monitor-1', session: { ...original, topic: 'Árvores AVL revisadas' } });
   assert.equal(updated.topic, 'Árvores AVL revisadas');
-  assert.equal(updated.status, 'pending');
+  assert.equal(updated.status, 'approved');
   service.archiveSession({ actorId: 'monitor-1', sessionId: 'session-1' });
   assert.equal(repository.read().sessions.find(item => item.id === 'session-1').archived, true);
 });

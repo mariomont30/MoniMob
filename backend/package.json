@@ -1,6 +1,6 @@
 {
   "name": "monimob-monibot-backend",
-  "version": "1.0.3",
+  "version": "1.7.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",
-    "firebase-functions": "^7.4.0"
+    "firebase-functions": "^7.4.0",
+    "@google-cloud/firestore": "^9.1.0"
   },
   "main": "src/functions.js"
 }

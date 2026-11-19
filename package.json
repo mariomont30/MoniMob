@@ -1,9 +1,9 @@
 {
   "name": "monimob",
-  "version": "1.0.3",
+  "version": "1.7.4",
   "private": true,
   "scripts": {
-    "test": "node --test mobile-expo/tests/*.test.js && node --test backend/tests/*.test.js && node scripts/verify-source.mjs",
+    "test": "node --test mobile-expo/tests/*.test.js && node --test backend/tests/*.test.js && node --test scripts/tests/*.test.mjs && node scripts/verify-source.mjs",
     "test:domain": "node --test mobile-expo/tests/*.test.js",
     "test:backend": "node --test backend/tests/*.test.js",
     "test:load": "npm --prefix backend run test:load",
@@ -13,7 +13,13 @@
     "sync:domain": "node scripts/sync-domain.mjs",
     "test:emulators": "npm --prefix tests/firestore test",
     "export:native": "npm --prefix mobile-expo exec -- expo export --platform android --platform ios",
-    "check:source": "node scripts/verify-source.mjs"
+    "check:source": "node scripts/verify-source.mjs",
+    "instalar": "node scripts/install-local.mjs",
+    "iniciar": "node scripts/start-local.mjs",
+    "iniciar:apk": "node scripts/start-local.mjs --sem-expo",
+    "diagnostico": "node scripts/diagnostico.mjs",
+    "diagnostico:ia": "node scripts/diagnostico.mjs --ia",
+    "firebase:regras": "node scripts/deploy-rules.mjs"
   },
   "engines": {
     "node": "^22.13.0 || ^24.3.0 || ^26.0.0"

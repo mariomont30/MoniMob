@@ -3,7 +3,7 @@ export const ROLE_LABELS = { student: 'Aluno', monitor: 'Monitor', professor: 'P
 export const createSessionFilters = () => ({ query: '', semester: '', disciplineId: '', professorId: '', monitorId: '', modality: '', date: '', time: '', shift: '', availableOnly: false });
 
 const STATUS_LABELS = {
-  approved: 'Aprovada', pending: 'Pendente', rejected: 'Rejeitada',
+  approved: 'Aprovada', pending: 'Aguardando aprovação', rejected: 'Rejeitada',
   adjustments_requested: 'Ajustes solicitados', confirmed: 'Confirmada',
   cancelled: 'Cancelada', waiting: 'Lista de espera', present: 'Presente', absent: 'Ausente'
 };

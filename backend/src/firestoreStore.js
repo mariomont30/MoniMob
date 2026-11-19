@@ -16,11 +16,11 @@ export class FirestoreStore {
       tx.set(ref, { count: count + 1, expiresAt: new Date((window + 2) * 60000) });
     });
   }
-  async load(tx) {
+  async load(tx, includeEvents = false) {
     const state = emptyState();
     // Audit entries are append-only. Loading historical logs for every mutation
     // needlessly consumed the daily read quota and grew with every sign-in.
-    const collections = COLLECTIONS.filter(name => name !== 'auditLogs');
+    const collections = COLLECTIONS.filter(name => name !== 'auditLogs' && (includeEvents || name !== 'academicEvents'));
     let size = 0;
     const [snapshots, settings] = await Promise.all([
       Promise.all(collections.map(name => tx.get(this.db.collection(name).limit(2001)))),
@@ -38,7 +38,7 @@ export class FirestoreStore {
     if (identity) return this.db.runTransaction(tx => readScopedState(this.db, tx, identity, role), { readOnly: true });
     return this.db.runTransaction(async tx => {
       await tx.get(this.db.doc('system/academicRevision'));
-      return this.load(tx);
+      return this.load(tx, true);
     }, { readOnly: true });
   }
   async recordAuthEvent(commandId, fingerprint, identity, role, action) {

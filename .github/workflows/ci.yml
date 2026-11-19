@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monimob-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Código público e testes unitários
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            mobile-expo/package-lock.json
+      - run: node scripts/check-public.mjs
+      - run: npm ci --prefix backend --no-fund --no-audit
+      - run: npm ci --prefix mobile-expo --no-fund --no-audit
+      - run: npm test
+
+  firebase:
+    name: Integração com Firebase emulado
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GCLOUD_PROJECT: demo-monimob
+      GEMINI_API_KEY: ''
+      GOOGLE_APPLICATION_CREDENTIALS: ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            tests/firestore/package-lock.json
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --prefix backend --no-fund --no-audit
+      - run: npm ci --prefix tests/firestore --no-fund --no-audit
+      - name: Executar regras e fluxos completos
+        run: >
+          ./tests/firestore/node_modules/.bin/firebase emulators:exec
+          --project demo-monimob --only firestore,auth
+          "node scripts/run-emulator-tests.mjs"
+
+  release:
+    name: Verificar e publicar APK preparado
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [unit, firebase]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Publicar somente o rascunho verificado da versão 1.7.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases" > "$RUNNER_TEMP/releases.json"
+          release_id="$(node -e "const r=require(process.argv[1]).find(x=>x.tag_name==='v1.7.4'&&x.draft); if(r)process.stdout.write(String(r.id))" "$RUNNER_TEMP/releases.json")"
+          if [ -z "$release_id" ]; then
+            echo "Nenhum rascunho pendente para publicar."
+            exit 0
+          fi
+          target="$(node -e "const r=require(process.argv[1]).find(x=>String(x.id)===process.argv[2]);process.stdout.write(r.target_commitish)" "$RUNNER_TEMP/releases.json" "$release_id")"
+          git fetch origin "$target" --depth=1
+          git merge-base --is-ancestor "$target" HEAD
+          mkdir -p "$RUNNER_TEMP/monimob-apk"
+          gh release download v1.7.4 --repo "$GITHUB_REPOSITORY" --pattern MoniMob-Android.apk --dir "$RUNNER_TEMP/monimob-apk"
+          cp docs/releases/SHA256SUMS-1.7.4.txt "$RUNNER_TEMP/monimob-apk/SHA256SUMS.txt"
+          (cd "$RUNNER_TEMP/monimob-apk" && sha256sum -c SHA256SUMS.txt)
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false -f make_latest=true

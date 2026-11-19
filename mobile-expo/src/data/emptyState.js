@@ -3,6 +3,6 @@ export function createEmptyState() {
     users: [], disciplines: [], professorDisciplines: [], monitorDisciplines: [],
     sessions: [], reservations: [], waitlist: [], favorites: [], attendanceCodes: [],
     attendance: [], materials: [], approvals: [], auditLogs: [], notifications: [],
-    settings: {}
+    linkRequests: [], academicEvents: [], settings: {}
   };
 }
