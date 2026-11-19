@@ -33,7 +33,10 @@
     "node": "^22.13.0 || ^24.3.0 || ^26.0.0"
   },
   "overrides": {
-    "@grpc/grpc-js": "^1.13.6"
+    "@grpc/grpc-js": "^1.13.6",
+    "@expo/fingerprint": {
+      "minimatch": "11.0.9"
+    }
   },
   "devDependencies": {
     "@babel/parser": "^7.29.14",
