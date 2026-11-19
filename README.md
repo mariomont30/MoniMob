@@ -39,9 +39,9 @@ aplicativo. O monitor também pode acessar a área de Aluno.
 
 ## Instalar no Android
 
-|                                            Download direto                                             | Antes de testar                                                                                                                                                                                                                                   |
-| :----------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| <img src="docs/assets/monimob-apk-qr.png" width="220" alt="QR Code para baixar o APK MoniMob 1.7.4" /> | **[Baixar MoniMob para Android](https://github.com/mariomont30/MoniMob/releases/download/v1.7.4/MoniMob-Android.apk)**<br/>Android 7.0 ou superior. O QR Code baixa o instalador; não é o QR do Expo Go.<br/>A Release inclui o checksum SHA-256. |
+| Download direto | Tela inicial do MoniMob |
+| :---: | :---: |
+| [<img src="docs/assets/monimob-apk-qr.png" width="220" alt="QR Code para baixar o APK MoniMob 1.7.4" />](https://github.com/mariomont30/MoniMob/releases/download/v1.7.4/MoniMob-Android.apk) | [<img src="docs/assets/monimob-tela-inicial.png" width="240" alt="Tela inicial do MoniMob com os botões Entrar e Criar conta" />](docs/assets/monimob-tela-inicial.png) |
 
 O APK abre sem Expo Go. **As funções online precisam de internet e do backend
 ativo do ambiente correspondente.** Esta distribuição acadêmica utiliza o
